@@ -1,67 +1,81 @@
 --[[
-    RedEngine GUI Framework - Simplified Version
+    RedEngine GUI Framework - Refactored Version
     Features:
-    - Self-contained script with all functionality in one file
-    - Implements Home, Server, and Teleport tab functionalities
+    - Matches the original UI design
+    - Implements Home and Server tab functionalities
     - Includes Anti-AFK, Infinite Jump, and No Clip toggles
     - Implements Rejoin Server, Server Hop, and Sea Teleport options
-    - Includes Teleport to Pirate/Marine options
-    - Toggle visibility with LeftControl
+    - Toggle visibility with LeftControl key
 ]]
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local VirtualUser = game:GetService("VirtualUser")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+-- Variables
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+local GameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
+
+-- Settings
+getgenv().AntiAFKEnabled = true
+getgenv().InfiniteJumpEnabled = false
+getgenv().NoClipEnabled = false
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "RedEngineGUI"
 ScreenGui.Parent = game:GetService("CoreGui")
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Main Frame
 local MainFrame = Instance.new("Frame")
 MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 600, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -175)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Size = UDim2.new(0, 500, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
 MainFrame.Parent = ScreenGui
 
--- Round corners
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(0, 10)
-UICorner.Parent = MainFrame
-
 -- Title Bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
 TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+TitleBar.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainFrame
-
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10)
-TitleCorner.Parent = TitleBar
-
--- Fix the bottom corners of title bar
-local BottomFrame = Instance.new("Frame")
-BottomFrame.Size = UDim2.new(1, 0, 0.5, 0)
-BottomFrame.Position = UDim2.new(0, 0, 0.5, 0)
-BottomFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-BottomFrame.BorderSizePixel = 0
-BottomFrame.Parent = TitleBar
 
 -- Title Text
 local TitleText = Instance.new("TextLabel")
 TitleText.Name = "TitleText"
-TitleText.Size = UDim2.new(1, -10, 1, 0)
+TitleText.Size = UDim2.new(1, -60, 1, 0)
 TitleText.Position = UDim2.new(0, 10, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "RedEngine - " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-TitleText.TextColor3 = Color3.fromRGB(255, 0, 0)
+TitleText.Text = "RedEngine"
+TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 18
 TitleText.Font = Enum.Font.SourceSansBold
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
+
+-- Minimize Button
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Name = "MinimizeButton"
+MinimizeButton.Size = UDim2.new(0, 30, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -60, 0, 0)
+MinimizeButton.BackgroundTransparency = 1
+MinimizeButton.Text = "-"
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.TextSize = 24
+MinimizeButton.Font = Enum.Font.SourceSansBold
+MinimizeButton.Parent = TitleBar
 
 -- Close Button
 local CloseButton = Instance.new("TextButton")
@@ -69,35 +83,31 @@ CloseButton.Name = "CloseButton"
 CloseButton.Size = UDim2.new(0, 30, 0, 30)
 CloseButton.Position = UDim2.new(1, -30, 0, 0)
 CloseButton.BackgroundTransparency = 1
-CloseButton.Text = "X"
-CloseButton.TextColor3 = Color3.fromRGB(255, 0, 0)
-CloseButton.TextSize = 20
+CloseButton.Text = "×"
+CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.TextSize = 24
 CloseButton.Font = Enum.Font.SourceSansBold
 CloseButton.Parent = TitleBar
 
-CloseButton.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
+-- Navigation Panel
+local NavPanel = Instance.new("Frame")
+NavPanel.Name = "NavPanel"
+NavPanel.Size = UDim2.new(0, 120, 1, -30)
+NavPanel.Position = UDim2.new(0, 0, 0, 30)
+NavPanel.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+NavPanel.BorderSizePixel = 0
+NavPanel.Parent = MainFrame
 
--- Tab Buttons Frame
-local TabButtonsFrame = Instance.new("Frame")
-TabButtonsFrame.Name = "TabButtonsFrame"
-TabButtonsFrame.Size = UDim2.new(1, 0, 0, 30)
-TabButtonsFrame.Position = UDim2.new(0, 0, 0, 30)
-TabButtonsFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-TabButtonsFrame.BorderSizePixel = 0
-TabButtonsFrame.Parent = MainFrame
+-- Content Panel
+local ContentPanel = Instance.new("Frame")
+ContentPanel.Name = "ContentPanel"
+ContentPanel.Size = UDim2.new(1, -120, 1, -30)
+ContentPanel.Position = UDim2.new(0, 120, 0, 30)
+ContentPanel.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
+ContentPanel.BorderSizePixel = 0
+ContentPanel.Parent = MainFrame
 
--- Tab Content Frame
-local TabContentFrame = Instance.new("Frame")
-TabContentFrame.Name = "TabContentFrame"
-TabContentFrame.Size = UDim2.new(1, 0, 1, -60)
-TabContentFrame.Position = UDim2.new(0, 0, 0, 60)
-TabContentFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-TabContentFrame.BorderSizePixel = 0
-TabContentFrame.Parent = MainFrame
-
--- Create Tabs
+-- Create Tab System
 local tabs = {}
 local tabButtons = {}
 local currentTab = nil
@@ -106,15 +116,15 @@ local function createTab(name)
     -- Tab Button
     local tabButton = Instance.new("TextButton")
     tabButton.Name = name .. "Button"
-    tabButton.Size = UDim2.new(0, 100, 1, 0)
-    tabButton.Position = UDim2.new(0, #tabButtons * 100, 0, 0)
-    tabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    tabButton.Size = UDim2.new(1, 0, 0, 40)
+    tabButton.Position = UDim2.new(0, 0, 0, (#tabButtons * 40))
+    tabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
     tabButton.BorderSizePixel = 0
     tabButton.Text = name
     tabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
     tabButton.TextSize = 14
     tabButton.Font = Enum.Font.SourceSansSemibold
-    tabButton.Parent = TabButtonsFrame
+    tabButton.Parent = NavPanel
     
     -- Tab Content
     local tabContent = Instance.new("ScrollingFrame")
@@ -124,29 +134,29 @@ local function createTab(name)
     tabContent.BorderSizePixel = 0
     tabContent.ScrollBarThickness = 4
     tabContent.Visible = false
-    tabContent.Parent = TabContentFrame
+    tabContent.Parent = ContentPanel
     
     -- Auto layout for tab content
     local UIListLayout = Instance.new("UIListLayout")
-    UIListLayout.Padding = UDim.new(0, 5)
+    UIListLayout.Padding = UDim.new(0, 10)
     UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
     UIListLayout.Parent = tabContent
     
     UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        tabContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 10)
+        tabContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
     end)
     
     -- Tab Button Click
     tabButton.MouseButton1Click:Connect(function()
         if currentTab then
             currentTab.Content.Visible = false
-            currentTab.Button.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            currentTab.Button.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
             currentTab.Button.TextColor3 = Color3.fromRGB(200, 200, 200)
         end
         
         tabContent.Visible = true
-        tabButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        tabButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+        tabButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
         
         currentTab = {Content = tabContent, Button = tabButton}
     end)
@@ -165,21 +175,17 @@ end
 local function createSection(parent, title)
     local section = Instance.new("Frame")
     section.Name = title .. "Section"
-    section.Size = UDim2.new(0.95, 0, 0, 30) -- Initial size, will grow
-    section.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    section.Size = UDim2.new(0.9, 0, 0, 30) -- Initial size, will grow
+    section.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
     section.BorderSizePixel = 0
     section.Parent = parent
-    
-    local sectionCorner = Instance.new("UICorner")
-    sectionCorner.CornerRadius = UDim.new(0, 5)
-    sectionCorner.Parent = section
     
     local sectionTitle = Instance.new("TextLabel")
     sectionTitle.Name = "Title"
     sectionTitle.Size = UDim2.new(1, 0, 0, 25)
     sectionTitle.BackgroundTransparency = 1
     sectionTitle.Text = title
-    sectionTitle.TextColor3 = Color3.fromRGB(255, 0, 0)
+    sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
     sectionTitle.TextSize = 14
     sectionTitle.Font = Enum.Font.SourceSansBold
     sectionTitle.Parent = section
@@ -196,7 +202,7 @@ local function createSection(parent, title)
     UIListLayout.Parent = contentFrame
     
     UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        section.Size = UDim2.new(0.95, 0, 0, UIListLayout.AbsoluteContentSize.Y + 35)
+        section.Size = UDim2.new(0.9, 0, 0, UIListLayout.AbsoluteContentSize.Y + 35)
     end)
     
     return contentFrame
@@ -254,12 +260,12 @@ local function createButton(parent, text, callback)
     local button = Instance.new("TextButton")
     button.Name = text .. "Button"
     button.Size = UDim2.new(1, 0, 0, 30)
-    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     button.BorderSizePixel = 0
     button.Text = text
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.TextSize = 14
-    button.Font = Enum.Font.SourceSans
+    button.Font = Enum.Font.SourceSansBold
     button.Parent = parent
     
     local buttonCorner = Instance.new("UICorner")
@@ -291,7 +297,7 @@ local function createDropdown(parent, text, options, default, callback)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(0.5, -5, 1, 0)
     button.Position = UDim2.new(0.5, 0, 0, 0)
-    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
     button.BorderSizePixel = 0
     button.Text = default or options[1]
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -306,7 +312,7 @@ local function createDropdown(parent, text, options, default, callback)
     local optionsFrame = Instance.new("Frame")
     optionsFrame.Size = UDim2.new(0.5, -5, 0, #options * 25)
     optionsFrame.Position = UDim2.new(0.5, 0, 1, 5)
-    optionsFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    optionsFrame.BackgroundColor3 = Color3.fromRGB(70, 70, 75)
     optionsFrame.BorderSizePixel = 0
     optionsFrame.Visible = false
     optionsFrame.ZIndex = 10
@@ -353,9 +359,11 @@ end
 -- Create Tabs
 local homeTab = createTab("Home")
 local serverTab = createTab("Server")
-local teleportTab = createTab("Teleport")
-local farmTab = createTab("Farm")
 local settingsTab = createTab("Settings")
+local macroTab = createTab("Macro")
+local shopTab = createTab("Shop")
+local subsFarmTab = createTab("Subs Farm")
+local mainFarmTab = createTab("Main Farm")
 
 -- Home Tab Content
 local homeSection = createSection(homeTab, "Home Options")
@@ -466,51 +474,6 @@ createButton(seaSection, "Teleport to Sea", function()
     end
 end)
 
--- Teleport Tab Content
-local teamSection = createSection(teleportTab, "Team Teleport")
-
--- Team Dropdown
-local teamOptions = {"Pirate", "Marine"}
-local selectedTeam = createDropdown(teamSection, "Select Team", teamOptions, "Pirate", function(option)
-    print("Selected team: " .. option)
-end)
-
--- Teleport to Team Button
-createButton(teamSection, "Teleport to Team", function()
-    local team = selectedTeam.Value()
-    _G.Team = team
-    
-    if game:GetService("Players").LocalPlayer.PlayerGui.Main:FindFirstChild("ChooseTeam") then
-        local chooseTeam = game:GetService("Players").LocalPlayer.PlayerGui.Main.ChooseTeam
-        if chooseTeam.Visible then
-            if _G.Team == "Pirate" then
-                for _, v in pairs(getconnections(chooseTeam.Container.Pirates.Frame.ViewportFrame.TextButton.Activated)) do
-                    v.Function()
-                end
-            elseif _G.Team == "Marine" then
-                for _, v in pairs(getconnections(chooseTeam.Container.Marines.Frame.ViewportFrame.TextButton.Activated)) do
-                    v.Function()
-                end
-            end
-        end
-    end
-end)
-
--- Farm Tab Content
-local farmSection = createSection(farmTab, "Farm Options")
-
--- Auto Farm Toggle
-local autoFarm = createToggle(farmSection, "Auto Farm", false, function(value)
-    getgenv().AutoFarm = value
-    print("Auto Farm: " .. tostring(value))
-end)
-
--- Monster Selection
-local monsterOptions = {"Bandit", "Monkey", "Gorilla", "Pirate", "Marine"}
-local selectedMonster = createDropdown(farmSection, "Select Monster", monsterOptions, "Bandit", function(option)
-    print("Selected monster: " .. option)
-end)
-
 -- Settings Tab Content
 local settingsSection = createSection(settingsTab, "Settings")
 
@@ -541,30 +504,141 @@ end
 
 updateWorldLabel()
 
+-- Placeholder content for other tabs
+local function createPlaceholder(tab, message)
+    local placeholder = createSection(tab, "Coming Soon")
+    
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 0, 25)
+    label.BackgroundTransparency = 1
+    label.Text = message
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextSize = 14
+    label.Font = Enum.Font.SourceSans
+    label.Parent = placeholder
+end
+
+createPlaceholder(macroTab, "Macro functionality will be added later.")
+createPlaceholder(shopTab, "Shop functionality will be added later.")
+createPlaceholder(subsFarmTab, "Subs Farm functionality will be added later.")
+createPlaceholder(mainFarmTab, "Main Farm functionality will be added later.")
+
 -- Anti-AFK Implementation
-local Players = game:GetService("Players")
-local player = Players.LocalPlayer
 local VirtualUser = game:GetService("VirtualUser")
 
-player.Idled:Connect(function()
+Player.Idled:Connect(function()
     if getgenv().AntiAFKEnabled then
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.new())
     end
 end)
 
--- Toggle GUI with LeftControl
-local UserInputService = game:GetService("UserInputService")
+-- Button Actions
+CloseButton.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
 
+local isMinimized = false
+MinimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    
+    if isMinimized then
+        NavPanel.Visible = false
+        ContentPanel.Visible = false
+        MainFrame.Size = UDim2.new(0, 500, 0, 30)
+    else
+        NavPanel.Visible = true
+        ContentPanel.Visible = true
+        MainFrame.Size = UDim2.new(0, 500, 0, 300)
+    end
+end)
+
+-- Toggle GUI with LeftControl
+local guiVisible = true
+
+-- Create a small indicator when GUI is hidden
+local ToggleIndicator = Instance.new("Frame")
+ToggleIndicator.Name = "ToggleIndicator"
+ToggleIndicator.Size = UDim2.new(0, 40, 0, 40)
+ToggleIndicator.Position = UDim2.new(0, 10, 0, 10)
+ToggleIndicator.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+ToggleIndicator.BorderSizePixel = 0
+ToggleIndicator.Visible = false
+ToggleIndicator.Parent = ScreenGui
+
+local IndicatorCorner = Instance.new("UICorner")
+IndicatorCorner.CornerRadius = UDim.new(0, 5)
+IndicatorCorner.Parent = ToggleIndicator
+
+local IndicatorLabel = Instance.new("TextLabel")
+IndicatorLabel.Size = UDim2.new(1, 0, 1, 0)
+IndicatorLabel.BackgroundTransparency = 1
+IndicatorLabel.Text = "RE"
+IndicatorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+IndicatorLabel.TextSize = 16
+IndicatorLabel.Font = Enum.Font.SourceSansBold
+IndicatorLabel.Parent = ToggleIndicator
+
+-- Make indicator draggable
+local dragging = false
+local dragInput, dragStart, startPos
+
+ToggleIndicator.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = ToggleIndicator.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+ToggleIndicator.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        ToggleIndicator.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Toggle indicator click to show GUI
+ToggleIndicator.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if not dragging then
+            guiVisible = true
+            MainFrame.Visible = true
+            ToggleIndicator.Visible = false
+        end
+    end
+end)
+
+-- Ctrl key toggle functionality
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if not gameProcessed and input.KeyCode == Enum.KeyCode.LeftControl then
-        MainFrame.Visible = not MainFrame.Visible
+        guiVisible = not guiVisible
+        
+        if guiVisible then
+            MainFrame.Visible = true
+            ToggleIndicator.Visible = false
+        else
+            MainFrame.Visible = false
+            ToggleIndicator.Visible = true
+        end
     end
 end)
 
 -- Set first tab as active
-tabs["Home"].Button.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-tabs["Home"].Button.TextColor3 = Color3.fromRGB(255, 0, 0)
+tabs["Home"].Button.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+tabs["Home"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 tabs["Home"].Content.Visible = true
 currentTab = tabs["Home"]
 
