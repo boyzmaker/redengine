@@ -1,13 +1,11 @@
 --[[
-    RedEngine GUI Framework - v3.0
+    RedEngine GUI Framework - Redesigned Version
     Features:
     - Sleek red and green accent UI design
     - Optimized for performance
-    - Draggable minimized mode with custom icon
+    - Draggable minimized mode
     - Improved server hopping functionality
-    - Main Farm functionality with Level Farm
-    - Weapon selection system
-    - Changelog section
+    - Tabs: Home, Server, Teleport, Main Farm, Subs Farm, Shop, Macro, Settings
 ]]
 
 -- Services
@@ -18,25 +16,19 @@ local RunService = game:GetService("RunService")
 local TeleportService = game:GetService("TeleportService")
 local VirtualUser = game:GetService("VirtualUser")
 local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Variables
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 
--- Settings and Global Variables
+-- Settings
 getgenv().AntiAFKEnabled = true
 getgenv().InfiniteJumpEnabled = false
 getgenv().NoClipEnabled = false
-getgenv().LevelFarmQuest = false
-getgenv().SelectWeapon = "Combat"
-getgenv().SelectWeaponFarm = "Melee"
-getgenv().SelectMonster = nil
 
 -- Performance Optimization
 local renderSteppedConnection
 local steppedConnection
-local weaponUpdateConnection
 
 -- Create GUI
 local ScreenGui = Instance.new("ScreenGui")
@@ -99,10 +91,10 @@ BottomFrame.Parent = TitleBar
 -- Title Text
 local TitleText = Instance.new("TextLabel")
 TitleText.Name = "TitleText"
-TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Size = UDim2.new(1, -100, 1, 0)
 TitleText.Position = UDim2.new(0, 15, 0, 0)
 TitleText.BackgroundTransparency = 1
-TitleText.Text = "RedEngine v3.0"
+TitleText.Text = "RedEngine"
 TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
 TitleText.TextSize = 20
 TitleText.Font = Enum.Font.GothamBold
@@ -110,16 +102,24 @@ TitleText.TextXAlignment = Enum.TextXAlignment.Left
 TitleText.Parent = TitleBar
 
 -- Minimize Button
-local MinimizeButton = Instance.new("TextButton")
+local MinimizeButton = Instance.new("ImageButton")
 MinimizeButton.Name = "MinimizeButton"
-MinimizeButton.Size = UDim2.new(0, 40, 0, 40)
-MinimizeButton.Position = UDim2.new(1, -40, 0, 0)
+MinimizeButton.Size = UDim2.new(0, 24, 0, 24)
+MinimizeButton.Position = UDim2.new(1, -70, 0, 8)
 MinimizeButton.BackgroundTransparency = 1
-MinimizeButton.Text = "-"
-MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.TextSize = 30
-MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.Image = "rbxassetid://7072718185" -- Minimize icon
+MinimizeButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
 MinimizeButton.Parent = TitleBar
+
+-- Close Button
+local CloseButton = Instance.new("ImageButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 24, 0, 24)
+CloseButton.Position = UDim2.new(1, -40, 0, 8)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Image = "rbxassetid://7072725342" -- Close icon
+CloseButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+CloseButton.Parent = TitleBar
 
 -- Make the main frame draggable
 local dragging = false
@@ -199,13 +199,25 @@ local function createTab(name, order)
     tabIndicator.Parent = tabButton
     
     -- Tab Content
-    local tabContent = Instance.new("Frame")
+    local tabContent = Instance.new("ScrollingFrame")
     tabContent.Name = name .. "Content"
     tabContent.Size = UDim2.new(1, 0, 1, 0)
     tabContent.BackgroundTransparency = 1
     tabContent.BorderSizePixel = 0
+    tabContent.ScrollBarThickness = 4
+    tabContent.ScrollBarImageColor3 = Color3.fromRGB(180, 25, 25)
     tabContent.Visible = false
     tabContent.Parent = ContentPanel
+    
+    -- Auto layout for tab content
+    local UIListLayout = Instance.new("UIListLayout")
+    UIListLayout.Padding = UDim.new(0, 10)
+    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    UIListLayout.Parent = tabContent
+    
+    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        tabContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
+    end)
     
     -- Tab Button Click
     tabButton.MouseButton1Click:Connect(function()
@@ -236,21 +248,10 @@ local function createTab(name, order)
 end
 
 -- Create Sections
-local function createSection(parent, title, position)
+local function createSection(parent, title)
     local section = Instance.new("Frame")
     section.Name = title .. "Section"
-    
-    if position == "left" then
-        section.Size = UDim2.new(0.48, 0, 0, 40) -- Initial size, will grow
-        section.Position = UDim2.new(0.01, 0, 0, 10)
-    elseif position == "right" then
-        section.Size = UDim2.new(0.48, 0, 0, 40) -- Initial size, will grow
-        section.Position = UDim2.new(0.51, 0, 0, 10)
-    else
-        section.Size = UDim2.new(0.98, 0, 0, 40) -- Initial size, will grow
-        section.Position = UDim2.new(0.01, 0, 0, 10)
-    end
-    
+    section.Size = UDim2.new(0.95, 0, 0, 40) -- Initial size, will grow
     section.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
     section.BorderSizePixel = 0
     section.Parent = parent
@@ -270,14 +271,11 @@ local function createSection(parent, title, position)
     sectionTitle.Font = Enum.Font.GothamBold
     sectionTitle.Parent = section
     
-    local contentFrame = Instance.new("ScrollingFrame")
+    local contentFrame = Instance.new("Frame")
     contentFrame.Name = "Content"
     contentFrame.Size = UDim2.new(1, -20, 1, -35)
     contentFrame.Position = UDim2.new(0, 10, 0, 30)
     contentFrame.BackgroundTransparency = 1
-    contentFrame.BorderSizePixel = 0
-    contentFrame.ScrollBarThickness = 4
-    contentFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 25, 25)
     contentFrame.Parent = section
     
     local UIListLayout = Instance.new("UIListLayout")
@@ -285,8 +283,7 @@ local function createSection(parent, title, position)
     UIListLayout.Parent = contentFrame
     
     UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        section.Size = UDim2.new(section.Size.X.Scale, 0, 0, UIListLayout.AbsoluteContentSize.Y + 40)
-        contentFrame.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y)
+        section.Size = UDim2.new(0.95, 0, 0, UIListLayout.AbsoluteContentSize.Y + 40)
     end)
     
     return contentFrame
@@ -417,7 +414,7 @@ end
 local function createDropdown(parent, text, options, default, callback)
     local dropdown = Instance.new("Frame")
     dropdown.Name = text .. "Dropdown"
-    dropdown.Size = UDim2.new(1, 0, 0, 60)
+    dropdown.Size = UDim2.new(1, 0, 0, 36)
     dropdown.BackgroundTransparency = 1
     dropdown.Parent = parent
     
@@ -557,6 +554,8 @@ local function createDropdown(parent, text, options, default, callback)
         end
     end)
     
+    dropdown.Size = UDim2.new(1, 0, 0, 60) -- Adjust for label + button
+    
     return {
         Value = function() return button.Text end,
         Set = function(option)
@@ -568,63 +567,20 @@ local function createDropdown(parent, text, options, default, callback)
     }
 end
 
--- Create a text box for changelog
-local function createChangelogBox(parent, text)
-    local changelogBox = Instance.new("Frame")
-    changelogBox.Name = "ChangelogBox"
-    changelogBox.Size = UDim2.new(1, 0, 0, 200)
-    changelogBox.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    changelogBox.BorderSizePixel = 0
-    changelogBox.Parent = parent
-    
-    local boxCorner = Instance.new("UICorner")
-    boxCorner.CornerRadius = UDim.new(0, 6)
-    boxCorner.Parent = changelogBox
-    
-    local scrollFrame = Instance.new("ScrollingFrame")
-    scrollFrame.Size = UDim2.new(1, -10, 1, -10)
-    scrollFrame.Position = UDim2.new(0, 5, 0, 5)
-    scrollFrame.BackgroundTransparency = 1
-    scrollFrame.BorderSizePixel = 0
-    scrollFrame.ScrollBarThickness = 4
-    scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(180, 25, 25)
-    scrollFrame.Parent = changelogBox
-    
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, -10, 0, 0) -- Height will be adjusted
-    textLabel.BackgroundTransparency = 1
-    textLabel.Text = text
-    textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    textLabel.TextSize = 14
-    textLabel.Font = Enum.Font.Gotham
-    textLabel.TextXAlignment = Enum.TextXAlignment.Left
-    textLabel.TextYAlignment = Enum.TextYAlignment.Top
-    textLabel.TextWrapped = true
-    textLabel.Parent = scrollFrame
-    
-    -- Calculate text height
-    local textSize = game:GetService("TextService"):GetTextSize(
-        text,
-        14,
-        Enum.Font.Gotham,
-        Vector2.new(scrollFrame.AbsoluteSize.X - 10, 10000)
-    )
-    
-    textLabel.Size = UDim2.new(1, -10, 0, textSize.Y)
-    scrollFrame.CanvasSize = UDim2.new(0, 0, 0, textSize.Y)
-    
-    return changelogBox
-end
-
 -- Create Minimized Mode
-local MinimizedGui = Instance.new("ImageLabel")
+local MinimizedGui = Instance.new("Frame")
 MinimizedGui.Name = "MinimizedGui"
 MinimizedGui.Size = UDim2.new(0, 50, 0, 50)
 MinimizedGui.Position = UDim2.new(0, 20, 0, 20)
-MinimizedGui.BackgroundTransparency = 1
-MinimizedGui.Image = "https://i.ibb.co/Jm2fXS4/Kx-YSXg73.png" -- Using the provided image URL
+MinimizedGui.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
+MinimizedGui.BorderSizePixel = 0
 MinimizedGui.Visible = false
 MinimizedGui.Parent = ScreenGui
+
+-- Add rounded corners
+local MiniCorner = Instance.new("UICorner")
+MiniCorner.CornerRadius = UDim.new(1, 0)
+MiniCorner.Parent = MinimizedGui
 
 -- Add shadow
 local MiniShadow = Instance.new("ImageLabel")
@@ -640,6 +596,16 @@ MiniShadow.ImageTransparency = 0.5
 MiniShadow.ScaleType = Enum.ScaleType.Slice
 MiniShadow.SliceCenter = Rect.new(49, 49, 450, 450)
 MiniShadow.Parent = MinimizedGui
+
+-- Logo
+local Logo = Instance.new("TextLabel")
+Logo.Size = UDim2.new(1, 0, 1, 0)
+Logo.BackgroundTransparency = 1
+Logo.Text = "RE"
+Logo.TextColor3 = Color3.fromRGB(255, 255, 255)
+Logo.TextSize = 20
+Logo.Font = Enum.Font.GothamBold
+Logo.Parent = MinimizedGui
 
 -- Make minimized GUI draggable
 local miniDragging = false
@@ -683,15 +649,6 @@ MinimizedGui.InputBegan:Connect(function(input)
     end
 end)
 
--- Utility Functions
-local function CancelTween(toggle)
-    if toggle == false then
-        if TweenCancel then
-            TweenCancel:Cancel()
-        end
-    end
-end
-
 -- Create Tabs
 local homeTab = createTab("Home", 0)
 local serverTab = createTab("Server", 1)
@@ -702,17 +659,16 @@ local shopTab = createTab("Shop", 5)
 local macroTab = createTab("Macro", 6)
 local settingsTab = createTab("Settings", 7)
 
--- Home Tab Content (2-column layout)
-local homeLeftSection = createSection(homeTab, "Home Options", "left")
-local homeRightSection = createSection(homeTab, "Changelog", "right")
+-- Home Tab Content
+local homeSection = createSection(homeTab, "Home Options")
 
 -- Anti-AFK Toggle
-local antiAFK = createToggle(homeLeftSection, "Anti AFK", true, function(value)
+local antiAFK = createToggle(homeSection, "Anti AFK", true, function(value)
     getgenv().AntiAFKEnabled = value
 end)
 
 -- Infinite Jump Toggle
-local infiniteJump = createToggle(homeLeftSection, "Infinite Jump", false, function(value)
+local infiniteJump = createToggle(homeSection, "Infinite Jump", false, function(value)
     getgenv().InfiniteJumpEnabled = value
     
     if getgenv().InfiniteJumpEnabled then
@@ -736,7 +692,7 @@ local infiniteJump = createToggle(homeLeftSection, "Infinite Jump", false, funct
 end)
 
 -- No Clip Toggle
-local noClip = createToggle(homeLeftSection, "No Clip", false, function(value)
+local noClip = createToggle(homeSection, "No Clip", false, function(value)
     getgenv().NoClipEnabled = value
     
     if getgenv().NoClipEnabled then
@@ -762,27 +718,6 @@ local noClip = createToggle(homeLeftSection, "No Clip", false, function(value)
         end
     end
 end)
-
--- Changelog
-local changelogText = [[
-RedEngine v3.0 Changelog:
-
-- Complete UI redesign with improved aesthetics
-- Optimized performance for better FPS
-- Added custom minimized icon
-- Improved server hopping functionality
-- Added Main Farm functionality with Level Farm
-- Added weapon selection system
-- Implemented 2-column layout for Home tab
-- Added Changelog section
-- Fixed Ctrl key toggle issues
-- Removed exit button from title bar
-- Added "Destroy GUI" option in settings
-- Added "Lower Server" button
-- Fixed various bugs and improved stability
-]]
-
-createChangelogBox(homeRightSection, changelogText)
 
 -- Server Tab Content
 local serverSection = createSection(serverTab, "Server Options")
@@ -903,80 +838,8 @@ createButton(seaSection, "Teleport to Sea", function()
     end
 end)
 
--- Main Farm Tab Content (2-column layout)
-local mainFarmLeftSection = createSection(mainFarmTab, "Level Farm", "left")
-local mainFarmRightSection = createSection(mainFarmTab, "Monster Selection", "right")
-
--- Level Farm Toggle
-local levelFarmQuest = createToggle(mainFarmLeftSection, "Level Farm Quest", false, function(value)
-    getgenv().LevelFarmQuest = value
-    getgenv().SelectMonster = nil
-    CancelTween(getgenv().LevelFarmQuest)
-end)
-
--- Monster Selection (Placeholder for now)
-local monsterLabel = Instance.new("TextLabel")
-monsterLabel.Size = UDim2.new(1, 0, 0, 30)
-monsterLabel.BackgroundTransparency = 1
-monsterLabel.Text = "Monster selection will be populated based on your current world."
-monsterLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-monsterLabel.TextSize = 14
-monsterLabel.Font = Enum.Font.Gotham
-monsterLabel.TextWrapped = true
-monsterLabel.Parent = mainFarmRightSection
-
 -- Settings Tab Content
-local settingsLeftSection = createSection(settingsTab, "Main Settings", "left")
-local settingsRightSection = createSection(settingsTab, "World Info", "right")
-
--- Weapon Selection
-local weaponOptions = {"Melee", "Blox Fruit", "Sword", "Gun"}
-local selectedWeapon = createDropdown(settingsLeftSection, "Select Weapon", weaponOptions, "Melee", function(option)
-    getgenv().SelectWeaponFarm = option
-end)
-
--- Weapon Selection Logic
-if weaponUpdateConnection then
-    weaponUpdateConnection:Disconnect()
-end
-
-weaponUpdateConnection = RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if getgenv().SelectWeaponFarm == "Melee" then
-            for i, v in pairs(Player.Backpack:GetChildren()) do
-                if v.ToolTip == "Melee" then
-                    if Player.Backpack:FindFirstChild(tostring(v.Name)) then
-                        getgenv().SelectWeapon = v.Name
-                    end
-                end
-            end
-        elseif getgenv().SelectWeaponFarm == "Sword" then
-            for i, v in pairs(Player.Backpack:GetChildren()) do
-                if v.ToolTip == "Sword" then
-                    if Player.Backpack:FindFirstChild(tostring(v.Name)) then
-                        getgenv().SelectWeapon = v.Name
-                    end
-                end
-            end
-        elseif getgenv().SelectWeaponFarm == "Blox Fruit" then
-            for i, v in pairs(Player.Backpack:GetChildren()) do
-                if v.ToolTip == "Blox Fruit" then
-                    if Player.Backpack:FindFirstChild(tostring(v.Name)) then
-                        getgenv().SelectWeapon = v.Name
-                    end
-                end
-            end
-        elseif getgenv().SelectWeaponFarm == "Gun" then
-            for i, v in pairs(Player.Backpack:GetChildren()) do
-                if v.ToolTip == "Gun" then
-                    if Player.Backpack:FindFirstChild(tostring(v.Name)) then
-                        getgenv().SelectWeapon = v.Name
-                    end
-                end
-            end
-        end
-    end)
-end)
+local settingsSection = createSection(settingsTab, "Settings")
 
 -- World Check
 local worldLabel = Instance.new("TextLabel")
@@ -985,7 +848,7 @@ worldLabel.BackgroundTransparency = 1
 worldLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 worldLabel.TextSize = 14
 worldLabel.Font = Enum.Font.Gotham
-worldLabel.Parent = settingsRightSection
+worldLabel.Parent = settingsSection
 
 -- Check current world
 local function updateWorldLabel()
@@ -1006,7 +869,7 @@ end
 updateWorldLabel()
 
 -- Destroy GUI Button
-createButton(settingsLeftSection, "Destroy GUI", function()
+createButton(settingsSection, "Destroy GUI", function()
     -- Clean up connections
     if renderSteppedConnection then
         renderSteppedConnection:Disconnect()
@@ -1014,10 +877,6 @@ createButton(settingsLeftSection, "Destroy GUI", function()
     
     if steppedConnection then
         steppedConnection:Disconnect()
-    end
-    
-    if weaponUpdateConnection then
-        weaponUpdateConnection:Disconnect()
     end
     
     -- Destroy the GUI
@@ -1039,6 +898,7 @@ local function createPlaceholder(tab, message)
 end
 
 createPlaceholder(teleportTab, "Teleport functionality will be added later.")
+createPlaceholder(mainFarmTab, "Main Farm functionality will be added later.")
 createPlaceholder(subsFarmTab, "Subs Farm functionality will be added later.")
 createPlaceholder(shopTab, "Shop functionality will be added later.")
 createPlaceholder(macroTab, "Macro functionality will be added later.")
@@ -1051,7 +911,21 @@ Player.Idled:Connect(function()
     end
 end)
 
--- Minimize Button Action
+-- Button Actions
+CloseButton.MouseButton1Click:Connect(function()
+    -- Clean up connections
+    if renderSteppedConnection then
+        renderSteppedConnection:Disconnect()
+    end
+    
+    if steppedConnection then
+        steppedConnection:Disconnect()
+    end
+    
+    -- Destroy the GUI
+    ScreenGui:Destroy()
+end)
+
 MinimizeButton.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
     MinimizedGui.Visible = true
@@ -1069,4 +943,4 @@ currentTab = {
     Indicator = tabs["Home"].Indicator
 }
 
-print("RedEngine GUI Framework v3.0 has been initialized!")
+print("RedEngine GUI Framework has been initialized!")
