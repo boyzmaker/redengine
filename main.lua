@@ -1,11 +1,11 @@
 --[[
-    RedEngine GUI Framework - Refactored Version
+    RedEngine GUI Framework - Fixed Ctrl Toggle Version
     Features:
     - Matches the original UI design
     - Implements Home and Server tab functionalities
     - Includes Anti-AFK, Infinite Jump, and No Clip toggles
     - Implements Rejoin Server, Server Hop, and Sea Teleport options
-    - Toggle visibility with LeftControl key
+    - Fixed toggle visibility with LeftControl key
 ]]
 
 -- Services
@@ -553,9 +553,6 @@ MinimizeButton.MouseButton1Click:Connect(function()
     end
 end)
 
--- Toggle GUI with LeftControl
-local guiVisible = true
-
 -- Create a small indicator when GUI is hidden
 local ToggleIndicator = Instance.new("Frame")
 ToggleIndicator.Name = "ToggleIndicator"
@@ -614,24 +611,8 @@ end)
 ToggleIndicator.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 then
         if not dragging then
-            guiVisible = true
             MainFrame.Visible = true
             ToggleIndicator.Visible = false
-        end
-    end
-end)
-
--- Ctrl key toggle functionality
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.LeftControl then
-        guiVisible = not guiVisible
-        
-        if guiVisible then
-            MainFrame.Visible = true
-            ToggleIndicator.Visible = false
-        else
-            MainFrame.Visible = false
-            ToggleIndicator.Visible = true
         end
     end
 end)
@@ -642,4 +623,39 @@ tabs["Home"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
 tabs["Home"].Content.Visible = true
 currentTab = tabs["Home"]
 
-print("RedEngine GUI Framework has been initialized!")
+-- FIXED: Ctrl key toggle functionality
+local menuVisible = true
+
+-- Remove any existing connections to avoid conflicts
+for _, connection in pairs(getconnections(UserInputService.InputBegan)) do
+    if connection.Function and tostring(connection.Function):find("LeftControl") then
+        connection:Disconnect()
+    end
+end
+
+-- Create a new direct connection for the Ctrl key
+local function toggleMenu()
+    menuVisible = not menuVisible
+    
+    if menuVisible then
+        MainFrame.Visible = true
+        ToggleIndicator.Visible = false
+        print("Menu shown")
+    else
+        MainFrame.Visible = false
+        ToggleIndicator.Visible = true
+        print("Menu hidden")
+    end
+end
+
+-- Create a separate function for the input event
+local function onInputBegan(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.LeftControl then
+        toggleMenu()
+    end
+end
+
+-- Connect the input event
+UserInputService.InputBegan:Connect(onInputBegan)
+
+print("RedEngine GUI Framework has been initialized with fixed Ctrl toggle!")
