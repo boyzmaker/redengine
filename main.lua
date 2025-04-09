@@ -56,6 +56,19 @@ function utility:DraggingEnabled(frame, parent)
     end)
 end
 
+-- Function to load image from URL
+function utility:LoadImage(https://static.wikia.nocookie.net/roblox-blox-piece/images/4/43/DragonFruit.png/revision/latest?cb=20241218114129)
+    local success, result = pcall(function()
+        return game:HttpGet(url)
+    end)
+    
+    if success then
+        return result
+    else
+        return nil
+    end
+end
+
 -- Library
 local Library = {}
 
@@ -79,7 +92,8 @@ local changelogs = {
 }
 
 -- DragonFruit logo (base64 encoded to avoid external dependencies)
-local dragonFruitBase64 = "iVBORw0KGgoAAAANSUhEUgAAABkAAAAZCAYAAADE6YVjAAAACXBIWXMAAAsTAAALEwEAmpwYAAABpklEQVR4nO2Vv0oDQRDGF7GxsLCw8AEsLHwBC8HGwkfwAXwBCwvBQrCxECwEC0HBQrAQFCwEhYCFEDAQAgYhYBACQggYhIBBCBhk4Bs5wm7uLneXNQY/GOb2z87Mzs5sJPK/foAYMAXsgTdA6XoFDoEFoCdUgBSwCTxgxwuwAWSdBOLAGXBnEbXpHrgARoEoEAOywDVQsYhXgG0gYRKYBYoOAqZVBOZMQjNAyUOg7nJm3SSU9xGouyJQNAnlAgpAOZNQ1iRwHlAAnEkpZRLYCigAJ6WUMQkcBRSAY1JKmgR2AgqAnVJKmAR2AwqAnVJxk8BBwCawU2rQJFAIKFBWSsVMAvmAAnBOSsVNAjsBBeyclPpjJz8lALuTH3fyXQJwTkrFTAKbAQVgp9SASWAtoACck1JJk8BSQIGyUipjEpgKKABHpZTOJDAeUACOSamMSWAkYBPYKTViEugDHgMKlIGsSajHY8DUXYFek1gMuPQQKAFzpjvTJJgGbjwEboFp2+Azwe+VrQKHQMYmkAaOgCeLQBk4A0ZcX9l6sBiwBOxrEVhfwDGw6CbwZ/QJaKPtwS+llhEAAAAASUVORK5CYII="
+-- This is a placeholder, we'll use direct loading from URL instead
+local dragonFruitBase64 = ""
 
 function Library:CreateWindow(hubname)
     local RedEngineGUI = Instance.new("ScreenGui")
@@ -161,15 +175,27 @@ function Library:CreateWindow(hubname)
     Logo.BackgroundTransparency = 1
     Logo.Position = UDim2.new(0, 5, 0, 2)
     Logo.Size = UDim2.new(0, 26, 0, 26)
-    Logo.Image = "data:image/png;base64," .. dragonFruitBase64
+    
+    -- Try to load the image from GitHub
+    local imageUrl = "https://raw.githubusercontent.com/boyzmaker/redengine/main/DragonFruit.png"
+    
+    -- Use content provider to preload the image
+    game:GetService("ContentProvider"):PreloadAsync({imageUrl})
+    Logo.Image = imageUrl
 
+    -- Create a circular minimize button with the DragonFruit image
     MinimizeBtn.Name = "MinimizeBtn"
     MinimizeBtn.Parent = TopBar
-    MinimizeBtn.BackgroundTransparency = 1
-    MinimizeBtn.Position = UDim2.new(1, -30, 0, 0)
-    MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-    MinimizeBtn.Image = "rbxassetid://7072719338"
+    MinimizeBtn.BackgroundColor3 = colors.secondary
+    MinimizeBtn.BackgroundTransparency = 0
+    MinimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+    MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+    MinimizeBtn.Image = imageUrl
     MinimizeBtn.ImageColor3 = colors.text
+    
+    local UICorner_MinBtn = Instance.new("UICorner")
+    UICorner_MinBtn.CornerRadius = UDim.new(1, 0)
+    UICorner_MinBtn.Parent = MinimizeBtn
 
     NavBar.Name = "NavBar"
     NavBar.Parent = Main
@@ -527,7 +553,7 @@ function Library:CreateWindow(hubname)
     end
 
     -- Create toggle buttons in the right column
-    local function createToggle(parent, name, callback)
+    local function createToggle(parent, name, callback, defaultState)
         local ToggleFrame = Instance.new("Frame")
         ToggleFrame.Name = name .. "Toggle"
         ToggleFrame.Parent = parent
@@ -553,7 +579,7 @@ function Library:CreateWindow(hubname)
         local ToggleButton = Instance.new("TextButton")
         ToggleButton.Name = "ToggleButton"
         ToggleButton.Parent = ToggleFrame
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        ToggleButton.BackgroundColor3 = defaultState and colors.secondary or Color3.fromRGB(50, 50, 50)
         ToggleButton.Position = UDim2.new(1, -50, 0.5, -10)
         ToggleButton.Size = UDim2.new(0, 40, 0, 20)
         ToggleButton.Font = Enum.Font.Gotham
@@ -569,14 +595,18 @@ function Library:CreateWindow(hubname)
         ToggleCircle.Name = "ToggleCircle"
         ToggleCircle.Parent = ToggleButton
         ToggleCircle.BackgroundColor3 = colors.text
-        ToggleCircle.Position = UDim2.new(0, 2, 0.5, -8)
+        ToggleCircle.Position = defaultState and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
         ToggleCircle.Size = UDim2.new(0, 16, 0, 16)
         
         local UICorner_Circle = Instance.new("UICorner")
         UICorner_Circle.CornerRadius = UDim.new(1, 0)
         UICorner_Circle.Parent = ToggleCircle
         
-        local toggled = false
+        local toggled = defaultState or false
+        
+        if toggled and callback then
+            callback(toggled)
+        end
         
         ToggleButton.MouseButton1Click:Connect(function()
             toggled = not toggled
@@ -624,12 +654,13 @@ function Library:CreateWindow(hubname)
         return ButtonFrame
     end
     
-    local function createDropdown(parent, name, options, callback)
+    local function createDropdown(parent, name, options, callback, defaultOption)
         local DropdownFrame = Instance.new("Frame")
         DropdownFrame.Name = name .. "Dropdown"
         DropdownFrame.Parent = parent
         DropdownFrame.BackgroundColor3 = colors.border
         DropdownFrame.Size = UDim2.new(1, 0, 0, 40)
+        DropdownFrame.ZIndex = 1
         
         local UICorner_Dropdown = Instance.new("UICorner")
         UICorner_Dropdown.CornerRadius = UDim.new(0, 4)
@@ -646,6 +677,7 @@ function Library:CreateWindow(hubname)
         DropdownLabel.TextColor3 = colors.text
         DropdownLabel.TextSize = 14
         DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+        DropdownLabel.ZIndex = 1
         
         local DropdownButton = Instance.new("TextButton")
         DropdownButton.Name = "DropdownButton"
@@ -654,11 +686,12 @@ function Library:CreateWindow(hubname)
         DropdownButton.Position = UDim2.new(0, 120, 0.5, -15)
         DropdownButton.Size = UDim2.new(1, -130, 0, 30)
         DropdownButton.Font = Enum.Font.Gotham
-        DropdownButton.Text = options[1] or "Select..."
+        DropdownButton.Text = defaultOption or options[1] or "Select..."
         DropdownButton.TextColor3 = colors.text
         DropdownButton.TextSize = 14
         DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
         DropdownButton.TextTruncate = Enum.TextTruncate.AtEnd
+        DropdownButton.ZIndex = 1
         
         local UIPadding = Instance.new("UIPadding")
         UIPadding.Parent = DropdownButton
@@ -675,7 +708,7 @@ function Library:CreateWindow(hubname)
         DropdownMenu.Position = UDim2.new(0, 120, 0, 40)
         DropdownMenu.Size = UDim2.new(1, -130, 0, 0)
         DropdownMenu.Visible = false
-        DropdownMenu.ZIndex = 5
+        DropdownMenu.ZIndex = 10
         DropdownMenu.ClipsDescendants = true
         
         local UICorner_Menu = Instance.new("UICorner")
@@ -719,7 +752,7 @@ function Library:CreateWindow(hubname)
             OptionButton.Text = option
             OptionButton.TextColor3 = colors.text
             OptionButton.TextSize = 14
-            OptionButton.ZIndex = 6
+            OptionButton.ZIndex = 11
             
             OptionButton.MouseButton1Click:Connect(function()
                 DropdownButton.Text = option
@@ -730,21 +763,36 @@ function Library:CreateWindow(hubname)
             end)
         end
         
-        return DropdownFrame
+        return DropdownFrame, DropdownButton.Text
     end
     
-    -- Add toggles to the right column
-    createToggle(RightColumn, "Anti-AFK", function(state)
-        -- Anti-AFK functionality
-    end)
+    -- Add toggles to the right column with default states
+    local antiAFKToggle, antiAFKState = createToggle(RightColumn, "Anti-AFK", function(state)
+        -- Anti-AFK functionality will be implemented later
+        if state then
+            setupAntiAFK(true)
+        else
+            setupAntiAFK(false)
+        end
+    end, true) -- Set to true to enable by default
     
-    createToggle(RightColumn, "Infinite Jump", function(state)
-        -- Infinite Jump functionality
-    end)
+    local infiniteJumpToggle, infiniteJumpState = createToggle(RightColumn, "Infinite Jump", function(state)
+        -- Infinite Jump functionality will be implemented later
+        if state then
+            setupInfiniteJump(true)
+        else
+            setupInfiniteJump(false)
+        end
+    end, false)
     
-    createToggle(RightColumn, "No Clip", function(state)
-        -- No Clip functionality
-    end)
+    local noClipToggle, noClipState = createToggle(RightColumn, "No Clip", function(state)
+        -- No Clip functionality will be implemented later
+        if state then
+            setupNoClip(true)
+        else
+            setupNoClip(false)
+        end
+    end, false)
     
     -- Add server buttons to the Server tab
     createButton(ServerTab, "Rejoin Server", function()
@@ -785,15 +833,88 @@ function Library:CreateWindow(hubname)
         end
     end)
     
-    -- Add sea teleport to the Teleport tab
+    -- Add sea teleport to the Teleport tab with improved visibility
     local seas = {"First Sea", "Second Sea", "Third Sea"}
-    createDropdown(TeleportTab, "Select Sea", seas, function(selected)
-        -- Sea selection functionality
-    end)
+    local selectedSea = "First Sea"
+    
+    local SeaDropdown, currentSea = createDropdown(TeleportTab, "Select Sea", seas, function(selected)
+        selectedSea = selected
+    end, "First Sea")
+    
+    -- Make sure the dropdown menu appears on top
+    local DropdownMenu = SeaDropdown:FindFirstChild("DropdownMenu")
+    if DropdownMenu then
+        DropdownMenu.ZIndex = 10
+        for _, child in pairs(DropdownMenu:GetChildren()) do
+            if child:IsA("GuiObject") then
+                child.ZIndex = 11
+            end
+        end
+    end
     
     createButton(TeleportTab, "Teleport to Sea", function()
         -- Teleport to selected sea functionality
+        print("Teleporting to " .. selectedSea)
     end)
+    
+    -- Add player info to the Settings tab
+    local PlayerInfo = Instance.new("Frame")
+    PlayerInfo.Name = "PlayerInfo"
+    PlayerInfo.Parent = SettingsTab
+    PlayerInfo.BackgroundColor3 = colors.border
+    PlayerInfo.Size = UDim2.new(1, 0, 0, 120)
+    
+    local UICorner_PlayerInfo = Instance.new("UICorner")
+    UICorner_PlayerInfo.CornerRadius = UDim.new(0, 4)
+    UICorner_PlayerInfo.Parent = PlayerInfo
+    
+    local PlayerTitle = Instance.new("TextLabel")
+    PlayerTitle.Name = "PlayerTitle"
+    PlayerTitle.Parent = PlayerInfo
+    PlayerTitle.BackgroundTransparency = 1
+    PlayerTitle.Position = UDim2.new(0, 10, 0, 10)
+    PlayerTitle.Size = UDim2.new(1, -20, 0, 20)
+    PlayerTitle.Font = Enum.Font.GothamBold
+    PlayerTitle.Text = "Player Information"
+    PlayerTitle.TextColor3 = colors.text
+    PlayerTitle.TextSize = 16
+    PlayerTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local PlayerName = Instance.new("TextLabel")
+    PlayerName.Name = "PlayerName"
+    PlayerName.Parent = PlayerInfo
+    PlayerName.BackgroundTransparency = 1
+    PlayerName.Position = UDim2.new(0, 10, 0, 40)
+    PlayerName.Size = UDim2.new(1, -20, 0, 20)
+    PlayerName.Font = Enum.Font.Gotham
+    PlayerName.Text = "Username: " .. Player.Name
+    PlayerName.TextColor3 = colors.secondary
+    PlayerName.TextSize = 14
+    PlayerName.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local PlayerID = Instance.new("TextLabel")
+    PlayerID.Name = "PlayerID"
+    PlayerID.Parent = PlayerInfo
+    PlayerID.BackgroundTransparency = 1
+    PlayerID.Position = UDim2.new(0, 10, 0, 65)
+    PlayerID.Size = UDim2.new(1, -20, 0, 20)
+    PlayerID.Font = Enum.Font.Gotham
+    PlayerID.Text = "User ID: " .. Player.UserId
+    PlayerID.TextColor3 = colors.secondary
+    PlayerID.TextSize = 14
+    PlayerID.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local AccountAge = Instance.new("TextLabel")
+    AccountAge.Name = "AccountAge"
+    AccountAge.Parent = PlayerInfo
+    AccountAge.BackgroundTransparency = 1
+    AccountAge.Position = UDim2.new(0, 10, 0, 90)
+    AccountAge.Size = UDim2.new(1, -20, 0, 20)
+    AccountAge.Font = Enum.Font.Gotham
+    AccountAge.Text = "Account Age: " .. Player.AccountAge .. " days"
+    AccountAge.TextColor3 = colors.secondary
+    AccountAge.TextSize = 14
+    AccountAge.TextXAlignment = Enum.TextXAlignment.Left
     
     -- Add world info to the Settings tab
     local WorldInfo = Instance.new("Frame")
@@ -801,6 +922,7 @@ function Library:CreateWindow(hubname)
     WorldInfo.Parent = SettingsTab
     WorldInfo.BackgroundColor3 = colors.border
     WorldInfo.Size = UDim2.new(1, 0, 0, 80)
+    WorldInfo.LayoutOrder = 2
     
     local UICorner_WorldInfo = Instance.new("UICorner")
     UICorner_WorldInfo.CornerRadius = UDim.new(0, 4)
@@ -859,92 +981,104 @@ function Library:CreateWindow(hubname)
         end
     end)
     
+    -- Initialize features based on default states
+    if antiAFKState then
+        setupAntiAFK(true)
+    end
+    
+    if infiniteJumpState then
+        setupInfiniteJump(true)
+    end
+    
+    if noClipState then
+        setupNoClip(true)
+    end
+    
     return {
         RedEngineGUI = RedEngineGUI,
         Main = Main
     }
 end
 
--- Initialize the GUI
-local Window = Library:CreateWindow("RedEngine")
-
 -- Anti-AFK functionality
-local antiAFK = false
-local antiAFKConnection
+local antiAFKConnection = nil
 
-local function setupAntiAFK()
-    if antiAFK then
+function setupAntiAFK(enabled)
+    if enabled then
         if antiAFKConnection then
             antiAFKConnection:Disconnect()
         end
         
-        antiAFKConnection = RunService.Heartbeat:Connect(function()
+        antiAFKConnection = game:GetService("RunService").Heartbeat:Connect(function()
             local VirtualUser = game:GetService("VirtualUser")
             VirtualUser:CaptureController()
             VirtualUser:ClickButton2(Vector2.new())
         end)
+        print("Anti-AFK enabled")
     else
         if antiAFKConnection then
             antiAFKConnection:Disconnect()
             antiAFKConnection = nil
         end
+        print("Anti-AFK disabled")
     end
 end
 
 -- Infinite Jump functionality
-local infiniteJump = false
-local infiniteJumpConnection
+local infiniteJumpConnection = nil
 
-local function setupInfiniteJump()
-    if infiniteJump then
+function setupInfiniteJump(enabled)
+    if enabled then
         if infiniteJumpConnection then
             infiniteJumpConnection:Disconnect()
         end
         
-        infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
-            Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+        infiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+            game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
         end)
+        print("Infinite Jump enabled")
     else
         if infiniteJumpConnection then
             infiniteJumpConnection:Disconnect()
             infiniteJumpConnection = nil
         end
+        print("Infinite Jump disabled")
     end
 end
 
 -- No Clip functionality
-local noClip = false
-local noClipConnection
+local noClipConnection = nil
 
-local function setupNoClip()
-    if noClip then
+function setupNoClip(enabled)
+    if enabled then
         if noClipConnection then
             noClipConnection:Disconnect()
         end
         
-        noClipConnection = RunService.Stepped:Connect(function()
-            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-                for _, part in pairs(Player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        part.CanCollide = false
-                    end
+        noClipConnection = game:GetService("RunService").Stepped:Connect(function()
+            for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
                 end
             end
         end)
+        print("No Clip enabled")
     else
         if noClipConnection then
             noClipConnection:Disconnect()
             noClipConnection = nil
             
-            if Player.Character then
-                for _, part in pairs(Player.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = true
-                    end
+            for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
                 end
             end
         end
+        print("No Clip disabled")
     end
 end
+
+-- Initialize the GUI
+local Window = Library:CreateWindow("RedEngine")
 
 print("RedEngine GUI loaded successfully!")
