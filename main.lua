@@ -1,946 +1,950 @@
---[[
-    RedEngine GUI Framework - Redesigned Version
-    Features:
-    - Sleek red and green accent UI design
-    - Optimized for performance
-    - Draggable minimized mode
-    - Improved server hopping functionality
-    - Tabs: Home, Server, Teleport, Main Farm, Subs Farm, Shop, Macro, Settings
-]]
+-- RedEngine GUI - Consolidated Version
+-- All library dependencies included within this file
 
 -- Services
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
-local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
+local TextService = game:GetService("TextService")
 local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
 -- Variables
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
+local Camera = workspace.CurrentCamera
 
--- Settings
-getgenv().AntiAFKEnabled = true
-getgenv().InfiniteJumpEnabled = false
-getgenv().NoClipEnabled = false
+-- Utility Functions
+local utility = {}
 
--- Performance Optimization
-local renderSteppedConnection
-local steppedConnection
-
--- Create GUI
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "RedEngineGUI"
-ScreenGui.Parent = game:GetService("CoreGui")
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-ScreenGui.ResetOnSpawn = false
-
--- Main Frame
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 550, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -275, 0.5, -175)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-MainFrame.BorderSizePixel = 0
-MainFrame.ClipsDescendants = true
-MainFrame.Parent = ScreenGui
-
--- Add rounded corners
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
-MainCorner.Parent = MainFrame
-
--- Add shadow effect
-local MainShadow = Instance.new("ImageLabel")
-MainShadow.Name = "Shadow"
-MainShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-MainShadow.BackgroundTransparency = 1
-MainShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainShadow.Size = UDim2.new(1, 24, 1, 24)
-MainShadow.ZIndex = 0
-MainShadow.Image = "rbxassetid://6014261993"
-MainShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-MainShadow.ImageTransparency = 0.5
-MainShadow.ScaleType = Enum.ScaleType.Slice
-MainShadow.SliceCenter = Rect.new(49, 49, 450, 450)
-MainShadow.Parent = MainFrame
-
--- Title Bar
-local TitleBar = Instance.new("Frame")
-TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Color3.fromRGB(180, 25, 25) -- Softer red
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainFrame
-
--- Title Bar Corner
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
-TitleCorner.Parent = TitleBar
-
--- Fix the bottom corners of title bar
-local BottomFrame = Instance.new("Frame")
-BottomFrame.Size = UDim2.new(1, 0, 0.5, 0)
-BottomFrame.Position = UDim2.new(0, 0, 0.5, 0)
-BottomFrame.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-BottomFrame.BorderSizePixel = 0
-BottomFrame.Parent = TitleBar
-
--- Title Text
-local TitleText = Instance.new("TextLabel")
-TitleText.Name = "TitleText"
-TitleText.Size = UDim2.new(1, -100, 1, 0)
-TitleText.Position = UDim2.new(0, 15, 0, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Text = "RedEngine"
-TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleText.TextSize = 20
-TitleText.Font = Enum.Font.GothamBold
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Parent = TitleBar
-
--- Minimize Button
-local MinimizeButton = Instance.new("ImageButton")
-MinimizeButton.Name = "MinimizeButton"
-MinimizeButton.Size = UDim2.new(0, 24, 0, 24)
-MinimizeButton.Position = UDim2.new(1, -70, 0, 8)
-MinimizeButton.BackgroundTransparency = 1
-MinimizeButton.Image = "rbxassetid://7072718185" -- Minimize icon
-MinimizeButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.Parent = TitleBar
-
--- Close Button
-local CloseButton = Instance.new("ImageButton")
-CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 24, 0, 24)
-CloseButton.Position = UDim2.new(1, -40, 0, 8)
-CloseButton.BackgroundTransparency = 1
-CloseButton.Image = "rbxassetid://7072725342" -- Close icon
-CloseButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-CloseButton.Parent = TitleBar
-
--- Make the main frame draggable
-local dragging = false
-local dragInput, dragStart, startPos
-
-TitleBar.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-TitleBar.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
--- Navigation Panel
-local NavPanel = Instance.new("Frame")
-NavPanel.Name = "NavPanel"
-NavPanel.Size = UDim2.new(0, 130, 1, -40)
-NavPanel.Position = UDim2.new(0, 0, 0, 40)
-NavPanel.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-NavPanel.BorderSizePixel = 0
-NavPanel.Parent = MainFrame
-
--- Content Panel
-local ContentPanel = Instance.new("Frame")
-ContentPanel.Name = "ContentPanel"
-ContentPanel.Size = UDim2.new(1, -130, 1, -40)
-ContentPanel.Position = UDim2.new(0, 130, 0, 40)
-ContentPanel.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-ContentPanel.BorderSizePixel = 0
-ContentPanel.Parent = MainFrame
-
--- Create Tab System
-local tabs = {}
-local tabButtons = {}
-local currentTab = nil
-
-local function createTab(name, order)
-    -- Tab Button
-    local tabButton = Instance.new("TextButton")
-    tabButton.Name = name .. "Button"
-    tabButton.Size = UDim2.new(1, 0, 0, 40)
-    tabButton.Position = UDim2.new(0, 0, 0, (order * 40))
-    tabButton.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-    tabButton.BorderSizePixel = 0
-    tabButton.Text = name
-    tabButton.TextColor3 = Color3.fromRGB(180, 180, 180)
-    tabButton.TextSize = 14
-    tabButton.Font = Enum.Font.GothamSemibold
-    tabButton.Parent = NavPanel
-    
-    -- Tab Indicator
-    local tabIndicator = Instance.new("Frame")
-    tabIndicator.Name = "Indicator"
-    tabIndicator.Size = UDim2.new(0, 3, 1, 0)
-    tabIndicator.BackgroundColor3 = Color3.fromRGB(40, 180, 40) -- Green accent
-    tabIndicator.BorderSizePixel = 0
-    tabIndicator.Visible = false
-    tabIndicator.Parent = tabButton
-    
-    -- Tab Content
-    local tabContent = Instance.new("ScrollingFrame")
-    tabContent.Name = name .. "Content"
-    tabContent.Size = UDim2.new(1, 0, 1, 0)
-    tabContent.BackgroundTransparency = 1
-    tabContent.BorderSizePixel = 0
-    tabContent.ScrollBarThickness = 4
-    tabContent.ScrollBarImageColor3 = Color3.fromRGB(180, 25, 25)
-    tabContent.Visible = false
-    tabContent.Parent = ContentPanel
-    
-    -- Auto layout for tab content
-    local UIListLayout = Instance.new("UIListLayout")
-    UIListLayout.Padding = UDim.new(0, 10)
-    UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    UIListLayout.Parent = tabContent
-    
-    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        tabContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 20)
-    end)
-    
-    -- Tab Button Click
-    tabButton.MouseButton1Click:Connect(function()
-        if currentTab then
-            currentTab.Content.Visible = false
-            currentTab.Button.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-            currentTab.Button.TextColor3 = Color3.fromRGB(180, 180, 180)
-            currentTab.Indicator.Visible = false
-        end
-        
-        tabContent.Visible = true
-        tabButton.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-        tabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        tabIndicator.Visible = true
-        
-        currentTab = {Content = tabContent, Button = tabButton, Indicator = tabIndicator}
-    end)
-    
-    table.insert(tabButtons, tabButton)
-    
-    tabs[name] = {
-        Content = tabContent,
-        Button = tabButton,
-        Indicator = tabIndicator
-    }
-    
-    return tabContent
+function utility:Tween(instance, properties, duration, ...)
+    local tween = TweenService:Create(instance, TweenInfo.new(duration, ...), properties)
+    tween:Play()
+    return tween
 end
 
--- Create Sections
-local function createSection(parent, title)
-    local section = Instance.new("Frame")
-    section.Name = title .. "Section"
-    section.Size = UDim2.new(0.95, 0, 0, 40) -- Initial size, will grow
-    section.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-    section.BorderSizePixel = 0
-    section.Parent = parent
-    
-    -- Add rounded corners
-    local sectionCorner = Instance.new("UICorner")
-    sectionCorner.CornerRadius = UDim.new(0, 6)
-    sectionCorner.Parent = section
-    
-    local sectionTitle = Instance.new("TextLabel")
-    sectionTitle.Name = "Title"
-    sectionTitle.Size = UDim2.new(1, 0, 0, 30)
-    sectionTitle.BackgroundTransparency = 1
-    sectionTitle.Text = title
-    sectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    sectionTitle.TextSize = 14
-    sectionTitle.Font = Enum.Font.GothamBold
-    sectionTitle.Parent = section
-    
-    local contentFrame = Instance.new("Frame")
-    contentFrame.Name = "Content"
-    contentFrame.Size = UDim2.new(1, -20, 1, -35)
-    contentFrame.Position = UDim2.new(0, 10, 0, 30)
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.Parent = section
-    
-    local UIListLayout = Instance.new("UIListLayout")
-    UIListLayout.Padding = UDim.new(0, 8)
-    UIListLayout.Parent = contentFrame
-    
-    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        section.Size = UDim2.new(0.95, 0, 0, UIListLayout.AbsoluteContentSize.Y + 40)
-    end)
-    
-    return contentFrame
-end
+function utility:DraggingEnabled(frame, parent)
+    parent = parent or frame
+    local dragging = false
+    local dragInput, mousePos, framePos
 
--- Create UI Elements
-local function createToggle(parent, text, default, callback)
-    local toggle = Instance.new("Frame")
-    toggle.Name = text .. "Toggle"
-    toggle.Size = UDim2.new(1, 0, 0, 30)
-    toggle.BackgroundTransparency = 1
-    toggle.Parent = parent
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0.8, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = toggle
-    
-    local toggleButton = Instance.new("Frame")
-    toggleButton.Size = UDim2.new(0, 40, 0, 20)
-    toggleButton.Position = UDim2.new(1, -45, 0, 5)
-    toggleButton.BackgroundColor3 = default and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 25, 25)
-    toggleButton.Parent = toggle
-    
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(1, 0)
-    toggleCorner.Parent = toggleButton
-    
-    local toggleCircle = Instance.new("Frame")
-    toggleCircle.Size = UDim2.new(0, 16, 0, 16)
-    toggleCircle.Position = UDim2.new(default and 0.6 or 0.1, 0, 0.5, -8)
-    toggleCircle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-    toggleCircle.Parent = toggleButton
-    
-    local circleCorner = Instance.new("UICorner")
-    circleCorner.CornerRadius = UDim.new(1, 0)
-    circleCorner.Parent = toggleCircle
-    
-    local value = default
-    
-    toggleButton.InputBegan:Connect(function(input)
+    frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            value = not value
-            
-            TweenService:Create(toggleButton, TweenInfo.new(0.2), {
-                BackgroundColor3 = value and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 25, 25)
-            }):Play()
-            
-            TweenService:Create(toggleCircle, TweenInfo.new(0.2), {
-                Position = value and UDim2.new(0.6, 0, 0.5, -8) or UDim2.new(0.1, 0, 0.5, -8)
-            }):Play()
-            
-            callback(value)
-        end
-    end)
-    
-    return {
-        Value = function() return value end,
-        Set = function(newValue)
-            value = newValue
-            
-            TweenService:Create(toggleButton, TweenInfo.new(0.2), {
-                BackgroundColor3 = value and Color3.fromRGB(40, 180, 40) or Color3.fromRGB(180, 25, 25)
-            }):Play()
-            
-            TweenService:Create(toggleCircle, TweenInfo.new(0.2), {
-                Position = value and UDim2.new(0.6, 0, 0.5, -8) or UDim2.new(0.1, 0, 0.5, -8)
-            }):Play()
-            
-            callback(value)
-        end
-    }
-end
-
-local function createButton(parent, text, callback)
-    local button = Instance.new("TextButton")
-    button.Name = text .. "Button"
-    button.Size = UDim2.new(1, 0, 0, 36)
-    button.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-    button.BorderSizePixel = 0
-    button.Text = text
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 14
-    button.Font = Enum.Font.GothamSemibold
-    button.Parent = parent
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = button
-    
-    -- Button hover effect
-    button.MouseEnter:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(200, 40, 40)
-        }):Play()
-    end)
-    
-    button.MouseLeave:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.2), {
-            BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-        }):Play()
-    end)
-    
-    button.MouseButton1Down:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.1), {
-            BackgroundColor3 = Color3.fromRGB(150, 20, 20),
-            Size = UDim2.new(0.98, 0, 0, 34)
-        }):Play()
-    end)
-    
-    button.MouseButton1Up:Connect(function()
-        TweenService:Create(button, TweenInfo.new(0.1), {
-            BackgroundColor3 = Color3.fromRGB(200, 40, 40),
-            Size = UDim2.new(1, 0, 0, 36)
-        }):Play()
-    end)
-    
-    button.MouseButton1Click:Connect(callback)
-    
-    return button
-end
-
-local function createDropdown(parent, text, options, default, callback)
-    local dropdown = Instance.new("Frame")
-    dropdown.Name = text .. "Dropdown"
-    dropdown.Size = UDim2.new(1, 0, 0, 36)
-    dropdown.BackgroundTransparency = 1
-    dropdown.Parent = parent
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 20)
-    label.BackgroundTransparency = 1
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.Font = Enum.Font.Gotham
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = dropdown
-    
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(1, 0, 0, 36)
-    button.Position = UDim2.new(0, 0, 0, 20)
-    button.BackgroundColor3 = Color3.fromRGB(50, 50, 55)
-    button.BorderSizePixel = 0
-    button.Text = default or options[1]
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.TextSize = 14
-    button.Font = Enum.Font.Gotham
-    button.Parent = dropdown
-    
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = button
-    
-    local arrowIcon = Instance.new("ImageLabel")
-    arrowIcon.Size = UDim2.new(0, 20, 0, 20)
-    arrowIcon.Position = UDim2.new(1, -25, 0.5, -10)
-    arrowIcon.BackgroundTransparency = 1
-    arrowIcon.Image = "rbxassetid://7072706318" -- Down arrow
-    arrowIcon.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    arrowIcon.Parent = button
-    
-    local optionsFrame = Instance.new("Frame")
-    optionsFrame.Size = UDim2.new(1, 0, 0, 0) -- Will be resized when opened
-    optionsFrame.Position = UDim2.new(0, 0, 1, 5)
-    optionsFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
-    optionsFrame.BorderSizePixel = 0
-    optionsFrame.Visible = false
-    optionsFrame.ZIndex = 10
-    optionsFrame.ClipsDescendants = true
-    optionsFrame.Parent = button
-    
-    local optionsCorner = Instance.new("UICorner")
-    optionsCorner.CornerRadius = UDim.new(0, 6)
-    optionsCorner.Parent = optionsFrame
-    
-    local optionsList = Instance.new("ScrollingFrame")
-    optionsList.Size = UDim2.new(1, 0, 1, 0)
-    optionsList.BackgroundTransparency = 1
-    optionsList.BorderSizePixel = 0
-    optionsList.ScrollBarThickness = 4
-    optionsList.ScrollBarImageColor3 = Color3.fromRGB(180, 25, 25)
-    optionsList.ZIndex = 11
-    optionsList.Parent = optionsFrame
-    
-    local optionsLayout = Instance.new("UIListLayout")
-    optionsLayout.Padding = UDim.new(0, 2)
-    optionsLayout.Parent = optionsList
-    
-    for i, option in ipairs(options) do
-        local optionButton = Instance.new("TextButton")
-        optionButton.Size = UDim2.new(1, 0, 0, 30)
-        optionButton.BackgroundTransparency = 1
-        optionButton.Text = option
-        optionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        optionButton.TextSize = 14
-        optionButton.Font = Enum.Font.Gotham
-        optionButton.ZIndex = 12
-        optionButton.Parent = optionsList
-        
-        optionButton.MouseEnter:Connect(function()
-            TweenService:Create(optionButton, TweenInfo.new(0.1), {
-                BackgroundTransparency = 0.8,
-                BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-            }):Play()
-        end)
-        
-        optionButton.MouseLeave:Connect(function()
-            TweenService:Create(optionButton, TweenInfo.new(0.1), {
-                BackgroundTransparency = 1
-            }):Play()
-        end)
-        
-        optionButton.MouseButton1Click:Connect(function()
-            button.Text = option
-            
-            TweenService:Create(optionsFrame, TweenInfo.new(0.2), {
-                Size = UDim2.new(1, 0, 0, 0)
-            }):Play()
-            
-            TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
-                Rotation = 0
-            }):Play()
-            
-            wait(0.2)
-            optionsFrame.Visible = false
-            
-            callback(option)
-        end)
-    end
-    
-    optionsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        optionsList.CanvasSize = UDim2.new(0, 0, 0, optionsLayout.AbsoluteContentSize.Y)
-    end)
-    
-    local dropdownOpen = false
-    
-    button.MouseButton1Click:Connect(function()
-        dropdownOpen = not dropdownOpen
-        
-        if dropdownOpen then
-            optionsFrame.Visible = true
-            optionsFrame.Size = UDim2.new(1, 0, 0, 0)
-            
-            TweenService:Create(optionsFrame, TweenInfo.new(0.2), {
-                Size = UDim2.new(1, 0, 0, math.min(120, #options * 30))
-            }):Play()
-            
-            TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
-                Rotation = 180
-            }):Play()
-        else
-            TweenService:Create(optionsFrame, TweenInfo.new(0.2), {
-                Size = UDim2.new(1, 0, 0, 0)
-            }):Play()
-            
-            TweenService:Create(arrowIcon, TweenInfo.new(0.2), {
-                Rotation = 0
-            }):Play()
-            
-            wait(0.2)
-            optionsFrame.Visible = false
-        end
-    end)
-    
-    dropdown.Size = UDim2.new(1, 0, 0, 60) -- Adjust for label + button
-    
-    return {
-        Value = function() return button.Text end,
-        Set = function(option)
-            if table.find(options, option) then
-                button.Text = option
-                callback(option)
-            end
-        end
-    }
-end
-
--- Create Minimized Mode
-local MinimizedGui = Instance.new("Frame")
-MinimizedGui.Name = "MinimizedGui"
-MinimizedGui.Size = UDim2.new(0, 50, 0, 50)
-MinimizedGui.Position = UDim2.new(0, 20, 0, 20)
-MinimizedGui.BackgroundColor3 = Color3.fromRGB(180, 25, 25)
-MinimizedGui.BorderSizePixel = 0
-MinimizedGui.Visible = false
-MinimizedGui.Parent = ScreenGui
-
--- Add rounded corners
-local MiniCorner = Instance.new("UICorner")
-MiniCorner.CornerRadius = UDim.new(1, 0)
-MiniCorner.Parent = MinimizedGui
-
--- Add shadow
-local MiniShadow = Instance.new("ImageLabel")
-MiniShadow.Name = "Shadow"
-MiniShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-MiniShadow.BackgroundTransparency = 1
-MiniShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-MiniShadow.Size = UDim2.new(1, 24, 1, 24)
-MiniShadow.ZIndex = 0
-MiniShadow.Image = "rbxassetid://6014261993"
-MiniShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-MiniShadow.ImageTransparency = 0.5
-MiniShadow.ScaleType = Enum.ScaleType.Slice
-MiniShadow.SliceCenter = Rect.new(49, 49, 450, 450)
-MiniShadow.Parent = MinimizedGui
-
--- Logo
-local Logo = Instance.new("TextLabel")
-Logo.Size = UDim2.new(1, 0, 1, 0)
-Logo.BackgroundTransparency = 1
-Logo.Text = "RE"
-Logo.TextColor3 = Color3.fromRGB(255, 255, 255)
-Logo.TextSize = 20
-Logo.Font = Enum.Font.GothamBold
-Logo.Parent = MinimizedGui
-
--- Make minimized GUI draggable
-local miniDragging = false
-local miniDragInput, miniDragStart, miniStartPos
-
-MinimizedGui.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        miniDragging = true
-        miniDragStart = input.Position
-        miniStartPos = MinimizedGui.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                miniDragging = false
-            end
-        end)
-    end
-end)
-
-MinimizedGui.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        miniDragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == miniDragInput and miniDragging then
-        local delta = input.Position - miniDragStart
-        MinimizedGui.Position = UDim2.new(miniStartPos.X.Scale, miniStartPos.X.Offset + delta.X, miniStartPos.Y.Scale, miniStartPos.Y.Offset + delta.Y)
-    end
-end)
-
--- Restore from minimized mode
-MinimizedGui.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and not miniDragging then
-        wait(0.1) -- Small delay to prevent accidental clicks
-        if not miniDragging then
-            MinimizedGui.Visible = false
-            MainFrame.Visible = true
-        end
-    end
-end)
-
--- Create Tabs
-local homeTab = createTab("Home", 0)
-local serverTab = createTab("Server", 1)
-local teleportTab = createTab("Teleport", 2)
-local mainFarmTab = createTab("Main Farm", 3)
-local subsFarmTab = createTab("Subs Farm", 4)
-local shopTab = createTab("Shop", 5)
-local macroTab = createTab("Macro", 6)
-local settingsTab = createTab("Settings", 7)
-
--- Home Tab Content
-local homeSection = createSection(homeTab, "Home Options")
-
--- Anti-AFK Toggle
-local antiAFK = createToggle(homeSection, "Anti AFK", true, function(value)
-    getgenv().AntiAFKEnabled = value
-end)
-
--- Infinite Jump Toggle
-local infiniteJump = createToggle(homeSection, "Infinite Jump", false, function(value)
-    getgenv().InfiniteJumpEnabled = value
-    
-    if getgenv().InfiniteJumpEnabled then
-        if renderSteppedConnection then
-            renderSteppedConnection:Disconnect()
-        end
-        
-        renderSteppedConnection = UserInputService.JumpRequest:Connect(function()
-            if getgenv().InfiniteJumpEnabled then
-                local character = Player.Character
-                if character and character:FindFirstChildOfClass("Humanoid") then
-                    character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+            dragging = true
+            mousePos = input.Position
+            framePos = parent.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
                 end
-            end
-        end)
-    else
-        if renderSteppedConnection then
-            renderSteppedConnection:Disconnect()
+            end)
         end
-    end
-end)
+    end)
 
--- No Clip Toggle
-local noClip = createToggle(homeSection, "No Clip", false, function(value)
-    getgenv().NoClipEnabled = value
-    
-    if getgenv().NoClipEnabled then
-        if steppedConnection then
-            steppedConnection:Disconnect()
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
         end
-        
-        steppedConnection = RunService.Stepped:Connect(function()
-            if getgenv().NoClipEnabled then
-                local character = Player.Character
-                if character then
-                    for _, part in pairs(character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = false
-                        end
-                    end
-                end
-            end
-        end)
-    else
-        if steppedConnection then
-            steppedConnection:Disconnect()
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            parent.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
         end
-    end
-end)
-
--- Server Tab Content
-local serverSection = createSection(serverTab, "Server Options")
-
--- Rejoin Server Button
-createButton(serverSection, "Rejoin Server", function()
-    TeleportService:Teleport(game.PlaceId, Player)
-end)
-
--- Server Hop Button
-createButton(serverSection, "Server Hop", function()
-    local PlaceID = game.PlaceId
-    local AllIDs = {}
-    local foundAnything = ""
-    local actualHour = os.date("!*t").hour
-    local Deleted = false
-    
-    local function TPReturner()
-        local Site
-        if foundAnything == "" then
-            Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
-        else
-            Site = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100&cursor=' .. foundAnything))
-        end
-        
-        local ID = ""
-        if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
-            foundAnything = Site.nextPageCursor
-        end
-        
-        local num = 0
-        for i, v in pairs(Site.data) do
-            local Possible = true
-            ID = tostring(v.id)
-            
-            if tonumber(v.maxPlayers) > tonumber(v.playing) then
-                for _, Existing in pairs(AllIDs) do
-                    if num ~= 0 then
-                        if ID == tostring(Existing) then
-                            Possible = false
-                        end
-                    else
-                        if tonumber(actualHour) ~= tonumber(Existing) then
-                            local delFile = pcall(function()
-                                AllIDs = {}
-                                table.insert(AllIDs, actualHour)
-                            end)
-                        end
-                    end
-                    num = num + 1
-                end
-                
-                if Possible == true then
-                    table.insert(AllIDs, ID)
-                    wait(0.1)
-                    pcall(function()
-                        wait()
-                        TeleportService:TeleportToPlaceInstance(PlaceID, ID, Player)
-                    end)
-                    wait(0.1)
-                end
-            end
-        end
-    end
-    
-    TPReturner()
-end)
-
--- Lower Server Button
-createButton(serverSection, "Lower Server", function()
-    local PlaceID = game.PlaceId
-    local servers = {}
-    local req = HttpService:JSONDecode(game:HttpGet('https://games.roblox.com/v1/games/' .. PlaceID .. '/servers/Public?sortOrder=Asc&limit=100'))
-    
-    if req.data then
-        local lowest = nil
-        local lowestCount = math.huge
-        
-        for i, v in pairs(req.data) do
-            if v.playing < lowestCount and v.id ~= game.JobId then
-                lowestCount = v.playing
-                lowest = v.id
-            end
-        end
-        
-        if lowest then
-            TeleportService:TeleportToPlaceInstance(PlaceID, lowest, Player)
-        else
-            print("No suitable server found")
-        end
-    end
-end)
-
--- Sea Teleport Section
-local seaSection = createSection(serverTab, "Sea Teleport")
-
--- Sea Dropdown
-local seaOptions = {"First Sea", "Second Sea", "Third Sea"}
-local selectedSea = createDropdown(seaSection, "Select Sea", seaOptions, "First Sea", function(option)
-    print("Selected sea: " .. option)
-end)
-
--- Teleport to Sea Button
-createButton(seaSection, "Teleport to Sea", function()
-    local sea = selectedSea.Value()
-    local placeId
-    
-    if sea == "First Sea" then
-        placeId = 2753915549
-    elseif sea == "Second Sea" then
-        placeId = 4442272183
-    elseif sea == "Third Sea" then
-        placeId = 7449423635
-    end
-    
-    if placeId then
-        TeleportService:Teleport(placeId, Player)
-    end
-end)
-
--- Settings Tab Content
-local settingsSection = createSection(settingsTab, "Settings")
-
--- World Check
-local worldLabel = Instance.new("TextLabel")
-worldLabel.Size = UDim2.new(1, 0, 0, 30)
-worldLabel.BackgroundTransparency = 1
-worldLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-worldLabel.TextSize = 14
-worldLabel.Font = Enum.Font.Gotham
-worldLabel.Parent = settingsSection
-
--- Check current world
-local function updateWorldLabel()
-    local placeId = game.PlaceId
-    local worldName = "Unknown"
-    
-    if placeId == 2753915549 then
-        worldName = "First Sea"
-    elseif placeId == 4442272183 then
-        worldName = "Second Sea"
-    elseif placeId == 7449423635 then
-        worldName = "Third Sea"
-    end
-    
-    worldLabel.Text = "Current World: " .. worldName
+    end)
 end
 
-updateWorldLabel()
+-- Library
+local Library = {}
 
--- Destroy GUI Button
-createButton(settingsSection, "Destroy GUI", function()
-    -- Clean up connections
-    if renderSteppedConnection then
-        renderSteppedConnection:Disconnect()
-    end
-    
-    if steppedConnection then
-        steppedConnection:Disconnect()
-    end
-    
-    -- Destroy the GUI
-    ScreenGui:Destroy()
-end)
-
--- Placeholder content for other tabs
-local function createPlaceholder(tab, message)
-    local placeholder = createSection(tab, "Coming Soon")
-    
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, 0, 0, 30)
-    label.BackgroundTransparency = 1
-    label.Text = message
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextSize = 14
-    label.Font = Enum.Font.Gotham
-    label.Parent = placeholder
-end
-
-createPlaceholder(teleportTab, "Teleport functionality will be added later.")
-createPlaceholder(mainFarmTab, "Main Farm functionality will be added later.")
-createPlaceholder(subsFarmTab, "Subs Farm functionality will be added later.")
-createPlaceholder(shopTab, "Shop functionality will be added later.")
-createPlaceholder(macroTab, "Macro functionality will be added later.")
-
--- Anti-AFK Implementation
-Player.Idled:Connect(function()
-    if getgenv().AntiAFKEnabled then
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end
-end)
-
--- Button Actions
-CloseButton.MouseButton1Click:Connect(function()
-    -- Clean up connections
-    if renderSteppedConnection then
-        renderSteppedConnection:Disconnect()
-    end
-    
-    if steppedConnection then
-        steppedConnection:Disconnect()
-    end
-    
-    -- Destroy the GUI
-    ScreenGui:Destroy()
-end)
-
-MinimizeButton.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    MinimizedGui.Visible = true
-    MinimizedGui.Position = UDim2.new(0, MainFrame.AbsolutePosition.X, 0, MainFrame.AbsolutePosition.Y)
-end)
-
--- Set first tab as active
-tabs["Home"].Button.BackgroundColor3 = Color3.fromRGB(35, 35, 40)
-tabs["Home"].Button.TextColor3 = Color3.fromRGB(255, 255, 255)
-tabs["Home"].Content.Visible = true
-tabs["Home"].Indicator.Visible = true
-currentTab = {
-    Content = tabs["Home"].Content,
-    Button = tabs["Home"].Button,
-    Indicator = tabs["Home"].Indicator
+-- Color scheme
+local colors = {
+    primary = Color3.fromRGB(200, 30, 30),    -- Cool red
+    secondary = Color3.fromRGB(30, 180, 30),  -- Green accent
+    background = Color3.fromRGB(30, 30, 30),  -- Dark background
+    text = Color3.fromRGB(255, 255, 255),     -- White text
+    border = Color3.fromRGB(60, 60, 60),      -- Dark border
+    highlight = Color3.fromRGB(255, 100, 100) -- Highlight red
 }
 
-print("RedEngine GUI Framework has been initialized!")
+-- Changelog data
+local changelogs = {
+    {version = "v1.2.1", date = "2023-06-15", changes = {"Fixed server hop functionality", "Improved UI performance", "Added Lower Server option"}},
+    {version = "v1.2.0", date = "2023-06-01", changes = {"Added Teleport tab", "New color scheme", "Optimized code"}},
+    {version = "v1.1.5", date = "2023-05-20", changes = {"Bug fixes", "Added more farm options", "UI improvements"}},
+    {version = "v1.1.0", date = "2023-05-05", changes = {"Added Macro functionality", "New settings options", "Performance enhancements"}},
+    {version = "v1.0.0", date = "2023-04-20", changes = {"Initial release", "Basic functionality implemented"}}
+}
+
+-- DragonFruit logo (base64 encoded to avoid external dependencies)
+local dragonFruitBase64 = "iVBORw0KGgoAAAANSUhEUgAAABkAAAAZCAYAAADE6YVjAAAACXBIWXMAAAsTAAALEwEAmpwYAAABpklEQVR4nO2Vv0oDQRDGF7GxsLCw8AEsLHwBC8HGwkfwAXwBCwvBQrCxECwEC0HBQrAQFCwEhYCFEDAQAgYhYBACQggYhIBBCBhk4Bs5wm7uLneXNQY/GOb2z87Mzs5sJPK/foAYMAXsgTdA6XoFDoEFoCdUgBSwCTxgxwuwAWSdBOLAGXBnEbXpHrgARoEoEAOywDVQsYhXgG0gYRKYBYoOAqZVBOZMQjNAyUOg7nJm3SSU9xGouyJQNAnlAgpAOZNQ1iRwHlAAnEkpZRLYCigAJ6WUMQkcBRSAY1JKmgR2AgqAnVJKmAR2AwqAnVJxk8BBwCawU2rQJFAIKFBWSsVMAvmAAnBOSsVNAjsBBeyclPpjJz8lALuTH3fyXQJwTkrFTAKbAQVgp9SASWAtoACck1JJk8BSQIGyUipjEpgKKABHpZTOJDAeUACOSamMSWAkYBPYKTViEugDHgMKlIGsSajHY8DUXYFek1gMuPQQKAFzpjvTJJgGbjwEboFp2+Azwe+VrQKHQMYmkAaOgCeLQBk4A0ZcX9l6sBiwBOxrEVhfwDGw6CbwZ/QJaKPtwS+llhEAAAAASUVORK5CYII="
+
+function Library:CreateWindow(hubname)
+    local RedEngineGUI = Instance.new("ScreenGui")
+    local Main = Instance.new("Frame")
+    local UICorner = Instance.new("UICorner")
+    local TopBar = Instance.new("Frame")
+    local UICorner_2 = Instance.new("UICorner")
+    local Title = Instance.new("TextLabel")
+    local MinimizeBtn = Instance.new("ImageButton")
+    local NavBar = Instance.new("Frame")
+    local UICorner_3 = Instance.new("UICorner")
+    local NavBarLayout = Instance.new("UIListLayout")
+    local NavBarPadding = Instance.new("UIPadding")
+    local ContentContainer = Instance.new("Frame")
+    local HomeTab = Instance.new("ScrollingFrame")
+    local UIListLayout = Instance.new("UIListLayout")
+    local UIPadding = Instance.new("UIPadding")
+    local ServerTab = Instance.new("ScrollingFrame")
+    local UIListLayout_2 = Instance.new("UIListLayout")
+    local UIPadding_2 = Instance.new("UIPadding")
+    local TeleportTab = Instance.new("ScrollingFrame")
+    local UIListLayout_3 = Instance.new("UIListLayout")
+    local UIPadding_3 = Instance.new("UIPadding")
+    local MainFarmTab = Instance.new("ScrollingFrame")
+    local UIListLayout_4 = Instance.new("UIListLayout")
+    local UIPadding_4 = Instance.new("UIPadding")
+    local SubFarmTab = Instance.new("ScrollingFrame")
+    local UIListLayout_5 = Instance.new("UIListLayout")
+    local UIPadding_5 = Instance.new("UIPadding")
+    local MacroTab = Instance.new("ScrollingFrame")
+    local UIListLayout_6 = Instance.new("UIListLayout")
+    local UIPadding_6 = Instance.new("UIPadding")
+    local ShopTab = Instance.new("ScrollingFrame")
+    local UIListLayout_7 = Instance.new("UIListLayout")
+    local UIPadding_7 = Instance.new("UIPadding")
+    local SettingsTab = Instance.new("ScrollingFrame")
+    local UIListLayout_8 = Instance.new("UIListLayout")
+    local UIPadding_8 = Instance.new("UIPadding")
+
+    -- Properties
+    RedEngineGUI.Name = "RedEngineGUI"
+    RedEngineGUI.Parent = game.CoreGui
+    RedEngineGUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    Main.Name = "Main"
+    Main.Parent = RedEngineGUI
+    Main.BackgroundColor3 = colors.background
+    Main.BorderSizePixel = 0
+    Main.Position = UDim2.new(0.5, -300, 0.5, -175)
+    Main.Size = UDim2.new(0, 600, 0, 350)
+    Main.ClipsDescendants = true
+    Main.Active = true
+
+    UICorner.CornerRadius = UDim.new(0, 6)
+    UICorner.Parent = Main
+
+    TopBar.Name = "TopBar"
+    TopBar.Parent = Main
+    TopBar.BackgroundColor3 = colors.primary
+    TopBar.Size = UDim2.new(1, 0, 0, 30)
+
+    UICorner_2.CornerRadius = UDim.new(0, 6)
+    UICorner_2.Parent = TopBar
+
+    Title.Name = "Title"
+    Title.Parent = TopBar
+    Title.BackgroundTransparency = 1
+    Title.Position = UDim2.new(0, 40, 0, 0)
+    Title.Size = UDim2.new(1, -80, 1, 0)
+    Title.Font = Enum.Font.GothamBold
+    Title.Text = hubname or "RedEngine"
+    Title.TextColor3 = colors.text
+    Title.TextSize = 16
+
+    -- Create and setup the logo
+    local Logo = Instance.new("ImageLabel")
+    Logo.Name = "Logo"
+    Logo.Parent = TopBar
+    Logo.BackgroundTransparency = 1
+    Logo.Position = UDim2.new(0, 5, 0, 2)
+    Logo.Size = UDim2.new(0, 26, 0, 26)
+    Logo.Image = "data:image/png;base64," .. dragonFruitBase64
+
+    MinimizeBtn.Name = "MinimizeBtn"
+    MinimizeBtn.Parent = TopBar
+    MinimizeBtn.BackgroundTransparency = 1
+    MinimizeBtn.Position = UDim2.new(1, -30, 0, 0)
+    MinimizeBtn.Size = UDim2.new(0, 30, 0, 30)
+    MinimizeBtn.Image = "rbxassetid://7072719338"
+    MinimizeBtn.ImageColor3 = colors.text
+
+    NavBar.Name = "NavBar"
+    NavBar.Parent = Main
+    NavBar.BackgroundColor3 = colors.border
+    NavBar.Position = UDim2.new(0, 0, 0, 30)
+    NavBar.Size = UDim2.new(0, 120, 1, -30)
+
+    UICorner_3.CornerRadius = UDim.new(0, 6)
+    UICorner_3.Parent = NavBar
+
+    NavBarLayout.Name = "NavBarLayout"
+    NavBarLayout.Parent = NavBar
+    NavBarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    NavBarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    NavBarLayout.Padding = UDim.new(0, 5)
+
+    NavBarPadding.Name = "NavBarPadding"
+    NavBarPadding.Parent = NavBar
+    NavBarPadding.PaddingTop = UDim.new(0, 10)
+
+    ContentContainer.Name = "ContentContainer"
+    ContentContainer.Parent = Main
+    ContentContainer.BackgroundTransparency = 1
+    ContentContainer.Position = UDim2.new(0, 120, 0, 30)
+    ContentContainer.Size = UDim2.new(1, -120, 1, -30)
+
+    -- Setup tabs
+    HomeTab.Name = "HomeTab"
+    HomeTab.Parent = ContentContainer
+    HomeTab.Active = true
+    HomeTab.BackgroundTransparency = 1
+    HomeTab.BorderSizePixel = 0
+    HomeTab.Size = UDim2.new(1, 0, 1, 0)
+    HomeTab.ScrollBarThickness = 0
+    HomeTab.Visible = true
+
+    UIListLayout.Parent = HomeTab
+    UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout.Padding = UDim.new(0, 10)
+
+    UIPadding.Parent = HomeTab
+    UIPadding.PaddingLeft = UDim.new(0, 10)
+    UIPadding.PaddingTop = UDim.new(0, 10)
+    UIPadding.PaddingRight = UDim.new(0, 10)
+
+    ServerTab.Name = "ServerTab"
+    ServerTab.Parent = ContentContainer
+    ServerTab.Active = true
+    ServerTab.BackgroundTransparency = 1
+    ServerTab.BorderSizePixel = 0
+    ServerTab.Size = UDim2.new(1, 0, 1, 0)
+    ServerTab.ScrollBarThickness = 0
+    ServerTab.Visible = false
+
+    UIListLayout_2.Parent = ServerTab
+    UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_2.Padding = UDim.new(0, 10)
+
+    UIPadding_2.Parent = ServerTab
+    UIPadding_2.PaddingLeft = UDim.new(0, 10)
+    UIPadding_2.PaddingTop = UDim.new(0, 10)
+    UIPadding_2.PaddingRight = UDim.new(0, 10)
+
+    TeleportTab.Name = "TeleportTab"
+    TeleportTab.Parent = ContentContainer
+    TeleportTab.Active = true
+    TeleportTab.BackgroundTransparency = 1
+    TeleportTab.BorderSizePixel = 0
+    TeleportTab.Size = UDim2.new(1, 0, 1, 0)
+    TeleportTab.ScrollBarThickness = 0
+    TeleportTab.Visible = false
+
+    UIListLayout_3.Parent = TeleportTab
+    UIListLayout_3.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_3.Padding = UDim.new(0, 10)
+
+    UIPadding_3.Parent = TeleportTab
+    UIPadding_3.PaddingLeft = UDim.new(0, 10)
+    UIPadding_3.PaddingTop = UDim.new(0, 10)
+    UIPadding_3.PaddingRight = UDim.new(0, 10)
+
+    MainFarmTab.Name = "MainFarmTab"
+    MainFarmTab.Parent = ContentContainer
+    MainFarmTab.Active = true
+    MainFarmTab.BackgroundTransparency = 1
+    MainFarmTab.BorderSizePixel = 0
+    MainFarmTab.Size = UDim2.new(1, 0, 1, 0)
+    MainFarmTab.ScrollBarThickness = 0
+    MainFarmTab.Visible = false
+
+    UIListLayout_4.Parent = MainFarmTab
+    UIListLayout_4.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_4.Padding = UDim.new(0, 10)
+
+    UIPadding_4.Parent = MainFarmTab
+    UIPadding_4.PaddingLeft = UDim.new(0, 10)
+    UIPadding_4.PaddingTop = UDim.new(0, 10)
+    UIPadding_4.PaddingRight = UDim.new(0, 10)
+
+    SubFarmTab.Name = "SubFarmTab"
+    SubFarmTab.Parent = ContentContainer
+    SubFarmTab.Active = true
+    SubFarmTab.BackgroundTransparency = 1
+    SubFarmTab.BorderSizePixel = 0
+    SubFarmTab.Size = UDim2.new(1, 0, 1, 0)
+    SubFarmTab.ScrollBarThickness = 0
+    SubFarmTab.Visible = false
+
+    UIListLayout_5.Parent = SubFarmTab
+    UIListLayout_5.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_5.Padding = UDim.new(0, 10)
+
+    UIPadding_5.Parent = SubFarmTab
+    UIPadding_5.PaddingLeft = UDim.new(0, 10)
+    UIPadding_5.PaddingTop = UDim.new(0, 10)
+    UIPadding_5.PaddingRight = UDim.new(0, 10)
+
+    MacroTab.Name = "MacroTab"
+    MacroTab.Parent = ContentContainer
+    MacroTab.Active = true
+    MacroTab.BackgroundTransparency = 1
+    MacroTab.BorderSizePixel = 0
+    MacroTab.Size = UDim2.new(1, 0, 1, 0)
+    MacroTab.ScrollBarThickness = 0
+    MacroTab.Visible = false
+
+    UIListLayout_6.Parent = MacroTab
+    UIListLayout_6.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_6.Padding = UDim.new(0, 10)
+
+    UIPadding_6.Parent = MacroTab
+    UIPadding_6.PaddingLeft = UDim.new(0, 10)
+    UIPadding_6.PaddingTop = UDim.new(0, 10)
+    UIPadding_6.PaddingRight = UDim.new(0, 10)
+
+    ShopTab.Name = "ShopTab"
+    ShopTab.Parent = ContentContainer
+    ShopTab.Active = true
+    ShopTab.BackgroundTransparency = 1
+    ShopTab.BorderSizePixel = 0
+    ShopTab.Size = UDim2.new(1, 0, 1, 0)
+    ShopTab.ScrollBarThickness = 0
+    ShopTab.Visible = false
+
+    UIListLayout_7.Parent = ShopTab
+    UIListLayout_7.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_7.Padding = UDim.new(0, 10)
+
+    UIPadding_7.Parent = ShopTab
+    UIPadding_7.PaddingLeft = UDim.new(0, 10)
+    UIPadding_7.PaddingTop = UDim.new(0, 10)
+    UIPadding_7.PaddingRight = UDim.new(0, 10)
+
+    SettingsTab.Name = "SettingsTab"
+    SettingsTab.Parent = ContentContainer
+    SettingsTab.Active = true
+    SettingsTab.BackgroundTransparency = 1
+    SettingsTab.BorderSizePixel = 0
+    SettingsTab.Size = UDim2.new(1, 0, 1, 0)
+    SettingsTab.ScrollBarThickness = 0
+    SettingsTab.Visible = false
+
+    UIListLayout_8.Parent = SettingsTab
+    UIListLayout_8.SortOrder = Enum.SortOrder.LayoutOrder
+    UIListLayout_8.Padding = UDim.new(0, 10)
+
+    UIPadding_8.Parent = SettingsTab
+    UIPadding_8.PaddingLeft = UDim.new(0, 10)
+    UIPadding_8.PaddingTop = UDim.new(0, 10)
+    UIPadding_8.PaddingRight = UDim.new(0, 10)
+
+    -- Create tab buttons in the specified order
+    local tabButtons = {}
+    local tabs = {
+        {name = "Home", frame = HomeTab},
+        {name = "Server", frame = ServerTab},
+        {name = "Teleport", frame = TeleportTab},
+        {name = "Main Farm", frame = MainFarmTab},
+        {name = "Sub Farm", frame = SubFarmTab},
+        {name = "Macro", frame = MacroTab},
+        {name = "Shop", frame = ShopTab},
+        {name = "Settings", frame = SettingsTab}
+    }
+
+    local function switchTab(tabName)
+        for _, tab in pairs(tabs) do
+            tab.frame.Visible = (tab.name == tabName)
+        end
+        
+        for _, button in pairs(tabButtons) do
+            if button.Name == tabName .. "Button" then
+                button.BackgroundColor3 = colors.primary
+                button.TextColor3 = colors.text
+            else
+                button.BackgroundColor3 = colors.border
+                button.TextColor3 = Color3.fromRGB(200, 200, 200)
+            end
+        end
+    end
+
+    for i, tab in ipairs(tabs) do
+        local TabButton = Instance.new("TextButton")
+        TabButton.Name = tab.name .. "Button"
+        TabButton.Parent = NavBar
+        TabButton.BackgroundColor3 = i == 1 and colors.primary or colors.border
+        TabButton.Size = UDim2.new(0.9, 0, 0, 30)
+        TabButton.Font = Enum.Font.Gotham
+        TabButton.Text = tab.name
+        TabButton.TextColor3 = i == 1 and colors.text or Color3.fromRGB(200, 200, 200)
+        TabButton.TextSize = 14
+        TabButton.LayoutOrder = i
+        
+        local UICorner_Button = Instance.new("UICorner")
+        UICorner_Button.CornerRadius = UDim.new(0, 4)
+        UICorner_Button.Parent = TabButton
+        
+        TabButton.MouseButton1Click:Connect(function()
+            switchTab(tab.name)
+        end)
+        
+        table.insert(tabButtons, TabButton)
+    end
+
+    -- Create two-column layout for Home tab
+    local HomeColumns = Instance.new("Frame")
+    HomeColumns.Name = "HomeColumns"
+    HomeColumns.Parent = HomeTab
+    HomeColumns.BackgroundTransparency = 1
+    HomeColumns.Size = UDim2.new(1, 0, 0, 280)
+    
+    local LeftColumn = Instance.new("Frame")
+    LeftColumn.Name = "LeftColumn"
+    LeftColumn.Parent = HomeColumns
+    LeftColumn.BackgroundTransparency = 1
+    LeftColumn.Position = UDim2.new(0, 0, 0, 0)
+    LeftColumn.Size = UDim2.new(0.5, -5, 1, 0)
+    
+    local RightColumn = Instance.new("Frame")
+    RightColumn.Name = "RightColumn"
+    RightColumn.Parent = HomeColumns
+    RightColumn.BackgroundTransparency = 1
+    RightColumn.Position = UDim2.new(0.5, 5, 0, 0)
+    RightColumn.Size = UDim2.new(0.5, -5, 1, 0)
+    
+    local LeftColumnLayout = Instance.new("UIListLayout")
+    LeftColumnLayout.Parent = LeftColumn
+    LeftColumnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    LeftColumnLayout.Padding = UDim.new(0, 10)
+    
+    local RightColumnLayout = Instance.new("UIListLayout")
+    RightColumnLayout.Parent = RightColumn
+    RightColumnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    RightColumnLayout.Padding = UDim.new(0, 10)
+
+    -- Create changelog section
+    local ChangelogSection = Instance.new("Frame")
+    ChangelogSection.Name = "ChangelogSection"
+    ChangelogSection.Parent = LeftColumn
+    ChangelogSection.BackgroundColor3 = colors.border
+    ChangelogSection.Size = UDim2.new(1, 0, 0, 280)
+    
+    local UICorner_Changelog = Instance.new("UICorner")
+    UICorner_Changelog.CornerRadius = UDim.new(0, 4)
+    UICorner_Changelog.Parent = ChangelogSection
+    
+    local ChangelogTitle = Instance.new("TextLabel")
+    ChangelogTitle.Name = "ChangelogTitle"
+    ChangelogTitle.Parent = ChangelogSection
+    ChangelogTitle.BackgroundTransparency = 1
+    ChangelogTitle.Position = UDim2.new(0, 0, 0, 0)
+    ChangelogTitle.Size = UDim2.new(1, 0, 0, 30)
+    ChangelogTitle.Font = Enum.Font.GothamBold
+    ChangelogTitle.Text = "Changelog"
+    ChangelogTitle.TextColor3 = colors.text
+    ChangelogTitle.TextSize = 16
+    
+    local ChangelogList = Instance.new("ScrollingFrame")
+    ChangelogList.Name = "ChangelogList"
+    ChangelogList.Parent = ChangelogSection
+    ChangelogList.BackgroundTransparency = 1
+    ChangelogList.Position = UDim2.new(0, 5, 0, 35)
+    ChangelogList.Size = UDim2.new(1, -10, 1, -40)
+    ChangelogList.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ChangelogList.ScrollBarThickness = 4
+    ChangelogList.ScrollingDirection = Enum.ScrollingDirection.Y
+    ChangelogList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    
+    local ChangelogLayout = Instance.new("UIListLayout")
+    ChangelogLayout.Parent = ChangelogList
+    ChangelogLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    ChangelogLayout.Padding = UDim.new(0, 10)
+    
+    -- Populate changelog
+    for i, log in ipairs(changelogs) do
+        local ChangelogEntry = Instance.new("Frame")
+        ChangelogEntry.Name = "ChangelogEntry_" .. i
+        ChangelogEntry.Parent = ChangelogList
+        ChangelogEntry.BackgroundColor3 = colors.background
+        ChangelogEntry.Size = UDim2.new(1, 0, 0, 80)
+        ChangelogEntry.LayoutOrder = i
+        
+        local UICorner_Entry = Instance.new("UICorner")
+        UICorner_Entry.CornerRadius = UDim.new(0, 4)
+        UICorner_Entry.Parent = ChangelogEntry
+        
+        local VersionLabel = Instance.new("TextLabel")
+        VersionLabel.Name = "VersionLabel"
+        VersionLabel.Parent = ChangelogEntry
+        VersionLabel.BackgroundTransparency = 1
+        VersionLabel.Position = UDim2.new(0, 5, 0, 5)
+        VersionLabel.Size = UDim2.new(0.5, 0, 0, 20)
+        VersionLabel.Font = Enum.Font.GothamBold
+        VersionLabel.Text = log.version
+        VersionLabel.TextColor3 = colors.secondary
+        VersionLabel.TextSize = 14
+        VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local DateLabel = Instance.new("TextLabel")
+        DateLabel.Name = "DateLabel"
+        DateLabel.Parent = ChangelogEntry
+        DateLabel.BackgroundTransparency = 1
+        DateLabel.Position = UDim2.new(0.5, 0, 0, 5)
+        DateLabel.Size = UDim2.new(0.5, -5, 0, 20)
+        DateLabel.Font = Enum.Font.Gotham
+        DateLabel.Text = log.date
+        DateLabel.TextColor3 = colors.text
+        DateLabel.TextSize = 12
+        DateLabel.TextXAlignment = Enum.TextXAlignment.Right
+        
+        local ChangesList = Instance.new("Frame")
+        ChangesList.Name = "ChangesList"
+        ChangesList.Parent = ChangelogEntry
+        ChangesList.BackgroundTransparency = 1
+        ChangesList.Position = UDim2.new(0, 5, 0, 30)
+        ChangesList.Size = UDim2.new(1, -10, 0, 45)
+        
+        local ChangesLayout = Instance.new("UIListLayout")
+        ChangesLayout.Parent = ChangesList
+        ChangesLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        ChangesLayout.Padding = UDim.new(0, 5)
+        
+        for j, change in ipairs(log.changes) do
+            local ChangeItem = Instance.new("TextLabel")
+            ChangeItem.Name = "ChangeItem_" .. j
+            ChangeItem.Parent = ChangesList
+            ChangeItem.BackgroundTransparency = 1
+            ChangeItem.Size = UDim2.new(1, 0, 0, 15)
+            ChangeItem.Font = Enum.Font.Gotham
+            ChangeItem.Text = "• " .. change
+            ChangeItem.TextColor3 = colors.text
+            ChangeItem.TextSize = 12
+            ChangeItem.TextXAlignment = Enum.TextXAlignment.Left
+            ChangeItem.TextWrapped = true
+        end
+    end
+
+    -- Create toggle buttons in the right column
+    local function createToggle(parent, name, callback)
+        local ToggleFrame = Instance.new("Frame")
+        ToggleFrame.Name = name .. "Toggle"
+        ToggleFrame.Parent = parent
+        ToggleFrame.BackgroundColor3 = colors.border
+        ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+        
+        local UICorner_Toggle = Instance.new("UICorner")
+        UICorner_Toggle.CornerRadius = UDim.new(0, 4)
+        UICorner_Toggle.Parent = ToggleFrame
+        
+        local ToggleLabel = Instance.new("TextLabel")
+        ToggleLabel.Name = "ToggleLabel"
+        ToggleLabel.Parent = ToggleFrame
+        ToggleLabel.BackgroundTransparency = 1
+        ToggleLabel.Position = UDim2.new(0, 10, 0, 0)
+        ToggleLabel.Size = UDim2.new(1, -60, 1, 0)
+        ToggleLabel.Font = Enum.Font.Gotham
+        ToggleLabel.Text = name
+        ToggleLabel.TextColor3 = colors.text
+        ToggleLabel.TextSize = 14
+        ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local ToggleButton = Instance.new("TextButton")
+        ToggleButton.Name = "ToggleButton"
+        ToggleButton.Parent = ToggleFrame
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        ToggleButton.Position = UDim2.new(1, -50, 0.5, -10)
+        ToggleButton.Size = UDim2.new(0, 40, 0, 20)
+        ToggleButton.Font = Enum.Font.Gotham
+        ToggleButton.Text = ""
+        ToggleButton.TextColor3 = colors.text
+        ToggleButton.TextSize = 14
+        
+        local UICorner_Button = Instance.new("UICorner")
+        UICorner_Button.CornerRadius = UDim.new(0, 10)
+        UICorner_Button.Parent = ToggleButton
+        
+        local ToggleCircle = Instance.new("Frame")
+        ToggleCircle.Name = "ToggleCircle"
+        ToggleCircle.Parent = ToggleButton
+        ToggleCircle.BackgroundColor3 = colors.text
+        ToggleCircle.Position = UDim2.new(0, 2, 0.5, -8)
+        ToggleCircle.Size = UDim2.new(0, 16, 0, 16)
+        
+        local UICorner_Circle = Instance.new("UICorner")
+        UICorner_Circle.CornerRadius = UDim.new(1, 0)
+        UICorner_Circle.Parent = ToggleCircle
+        
+        local toggled = false
+        
+        ToggleButton.MouseButton1Click:Connect(function()
+            toggled = not toggled
+            
+            if toggled then
+                utility:Tween(ToggleCircle, {Position = UDim2.new(1, -18, 0.5, -8)}, 0.2)
+                utility:Tween(ToggleButton, {BackgroundColor3 = colors.secondary}, 0.2)
+            else
+                utility:Tween(ToggleCircle, {Position = UDim2.new(0, 2, 0.5, -8)}, 0.2)
+                utility:Tween(ToggleButton, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}, 0.2)
+            end
+            
+            if callback then
+                callback(toggled)
+            end
+        end)
+        
+        return ToggleFrame, toggled
+    end
+    
+    local function createButton(parent, name, callback)
+        local ButtonFrame = Instance.new("TextButton")
+        ButtonFrame.Name = name .. "Button"
+        ButtonFrame.Parent = parent
+        ButtonFrame.BackgroundColor3 = colors.primary
+        ButtonFrame.Size = UDim2.new(1, 0, 0, 40)
+        ButtonFrame.Font = Enum.Font.GothamBold
+        ButtonFrame.Text = name
+        ButtonFrame.TextColor3 = colors.text
+        ButtonFrame.TextSize = 14
+        
+        local UICorner_Button = Instance.new("UICorner")
+        UICorner_Button.CornerRadius = UDim.new(0, 4)
+        UICorner_Button.Parent = ButtonFrame
+        
+        ButtonFrame.MouseButton1Click:Connect(function()
+            utility:Tween(ButtonFrame, {BackgroundColor3 = colors.highlight}, 0.1)
+            if callback then
+                callback()
+            end
+            wait(0.1)
+            utility:Tween(ButtonFrame, {BackgroundColor3 = colors.primary}, 0.1)
+        end)
+        
+        return ButtonFrame
+    end
+    
+    local function createDropdown(parent, name, options, callback)
+        local DropdownFrame = Instance.new("Frame")
+        DropdownFrame.Name = name .. "Dropdown"
+        DropdownFrame.Parent = parent
+        DropdownFrame.BackgroundColor3 = colors.border
+        DropdownFrame.Size = UDim2.new(1, 0, 0, 40)
+        
+        local UICorner_Dropdown = Instance.new("UICorner")
+        UICorner_Dropdown.CornerRadius = UDim.new(0, 4)
+        UICorner_Dropdown.Parent = DropdownFrame
+        
+        local DropdownLabel = Instance.new("TextLabel")
+        DropdownLabel.Name = "DropdownLabel"
+        DropdownLabel.Parent = DropdownFrame
+        DropdownLabel.BackgroundTransparency = 1
+        DropdownLabel.Position = UDim2.new(0, 10, 0, 0)
+        DropdownLabel.Size = UDim2.new(0, 100, 1, 0)
+        DropdownLabel.Font = Enum.Font.Gotham
+        DropdownLabel.Text = name
+        DropdownLabel.TextColor3 = colors.text
+        DropdownLabel.TextSize = 14
+        DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
+        
+        local DropdownButton = Instance.new("TextButton")
+        DropdownButton.Name = "DropdownButton"
+        DropdownButton.Parent = DropdownFrame
+        DropdownButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+        DropdownButton.Position = UDim2.new(0, 120, 0.5, -15)
+        DropdownButton.Size = UDim2.new(1, -130, 0, 30)
+        DropdownButton.Font = Enum.Font.Gotham
+        DropdownButton.Text = options[1] or "Select..."
+        DropdownButton.TextColor3 = colors.text
+        DropdownButton.TextSize = 14
+        DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+        DropdownButton.TextTruncate = Enum.TextTruncate.AtEnd
+        
+        local UIPadding = Instance.new("UIPadding")
+        UIPadding.Parent = DropdownButton
+        UIPadding.PaddingLeft = UDim.new(0, 10)
+        
+        local UICorner_Button = Instance.new("UICorner")
+        UICorner_Button.CornerRadius = UDim.new(0, 4)
+        UICorner_Button.Parent = DropdownButton
+        
+        local DropdownMenu = Instance.new("Frame")
+        DropdownMenu.Name = "DropdownMenu"
+        DropdownMenu.Parent = DropdownFrame
+        DropdownMenu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        DropdownMenu.Position = UDim2.new(0, 120, 0, 40)
+        DropdownMenu.Size = UDim2.new(1, -130, 0, 0)
+        DropdownMenu.Visible = false
+        DropdownMenu.ZIndex = 5
+        DropdownMenu.ClipsDescendants = true
+        
+        local UICorner_Menu = Instance.new("UICorner")
+        UICorner_Menu.CornerRadius = UDim.new(0, 4)
+        UICorner_Menu.Parent = DropdownMenu
+        
+        local DropdownLayout = Instance.new("UIListLayout")
+        DropdownLayout.Parent = DropdownMenu
+        DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        DropdownLayout.Padding = UDim.new(0, 5)
+        
+        local DropdownPadding = Instance.new("UIPadding")
+        DropdownPadding.Parent = DropdownMenu
+        DropdownPadding.PaddingTop = UDim.new(0, 5)
+        DropdownPadding.PaddingBottom = UDim.new(0, 5)
+        
+        local menuOpen = false
+        
+        local function toggleMenu()
+            menuOpen = not menuOpen
+            
+            if menuOpen then
+                DropdownMenu.Visible = true
+                utility:Tween(DropdownMenu, {Size = UDim2.new(1, -130, 0, math.min(#options * 30, 150))}, 0.2)
+            else
+                utility:Tween(DropdownMenu, {Size = UDim2.new(1, -130, 0, 0)}, 0.2)
+                wait(0.2)
+                DropdownMenu.Visible = false
+            end
+        end
+        
+        DropdownButton.MouseButton1Click:Connect(toggleMenu)
+        
+        for i, option in ipairs(options) do
+            local OptionButton = Instance.new("TextButton")
+            OptionButton.Name = "Option_" .. i
+            OptionButton.Parent = DropdownMenu
+            OptionButton.BackgroundTransparency = 1
+            OptionButton.Size = UDim2.new(1, 0, 0, 25)
+            OptionButton.Font = Enum.Font.Gotham
+            OptionButton.Text = option
+            OptionButton.TextColor3 = colors.text
+            OptionButton.TextSize = 14
+            OptionButton.ZIndex = 6
+            
+            OptionButton.MouseButton1Click:Connect(function()
+                DropdownButton.Text = option
+                toggleMenu()
+                if callback then
+                    callback(option)
+                end
+            end)
+        end
+        
+        return DropdownFrame
+    end
+    
+    -- Add toggles to the right column
+    createToggle(RightColumn, "Anti-AFK", function(state)
+        -- Anti-AFK functionality
+    end)
+    
+    createToggle(RightColumn, "Infinite Jump", function(state)
+        -- Infinite Jump functionality
+    end)
+    
+    createToggle(RightColumn, "No Clip", function(state)
+        -- No Clip functionality
+    end)
+    
+    -- Add server buttons to the Server tab
+    createButton(ServerTab, "Rejoin Server", function()
+        TeleportService:Teleport(game.PlaceId, Player)
+    end)
+    
+    createButton(ServerTab, "Server Hop", function()
+        local servers = {}
+        local req = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        
+        for _, server in pairs(req.data) do
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                table.insert(servers, server.id)
+            end
+        end
+        
+        if #servers > 0 then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], Player)
+        else
+            -- No available servers
+        end
+    end)
+    
+    createButton(ServerTab, "Lower Server", function()
+        local servers = {}
+        local req = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100"))
+        
+        for _, server in pairs(req.data) do
+            if server.playing < 10 and server.id ~= game.JobId then
+                table.insert(servers, server.id)
+            end
+        end
+        
+        if #servers > 0 then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)], Player)
+        else
+            -- No available servers with less than 10 players
+        end
+    end)
+    
+    -- Add sea teleport to the Teleport tab
+    local seas = {"First Sea", "Second Sea", "Third Sea"}
+    createDropdown(TeleportTab, "Select Sea", seas, function(selected)
+        -- Sea selection functionality
+    end)
+    
+    createButton(TeleportTab, "Teleport to Sea", function()
+        -- Teleport to selected sea functionality
+    end)
+    
+    -- Add world info to the Settings tab
+    local WorldInfo = Instance.new("Frame")
+    WorldInfo.Name = "WorldInfo"
+    WorldInfo.Parent = SettingsTab
+    WorldInfo.BackgroundColor3 = colors.border
+    WorldInfo.Size = UDim2.new(1, 0, 0, 80)
+    
+    local UICorner_WorldInfo = Instance.new("UICorner")
+    UICorner_WorldInfo.CornerRadius = UDim.new(0, 4)
+    UICorner_WorldInfo.Parent = WorldInfo
+    
+    local WorldTitle = Instance.new("TextLabel")
+    WorldTitle.Name = "WorldTitle"
+    WorldTitle.Parent = WorldInfo
+    WorldTitle.BackgroundTransparency = 1
+    WorldTitle.Position = UDim2.new(0, 10, 0, 10)
+    WorldTitle.Size = UDim2.new(1, -20, 0, 20)
+    WorldTitle.Font = Enum.Font.GothamBold
+    WorldTitle.Text = "Current World"
+    WorldTitle.TextColor3 = colors.text
+    WorldTitle.TextSize = 16
+    WorldTitle.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local WorldValue = Instance.new("TextLabel")
+    WorldValue.Name = "WorldValue"
+    WorldValue.Parent = WorldInfo
+    WorldValue.BackgroundTransparency = 1
+    WorldValue.Position = UDim2.new(0, 10, 0, 40)
+    WorldValue.Size = UDim2.new(1, -20, 0, 20)
+    WorldValue.Font = Enum.Font.Gotham
+    WorldValue.Text = "First Sea"
+    WorldValue.TextColor3 = colors.secondary
+    WorldValue.TextSize = 14
+    WorldValue.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Add Destroy GUI button to Settings tab
+    createButton(SettingsTab, "Destroy GUI", function()
+        RedEngineGUI:Destroy()
+    end)
+    
+    -- Make the GUI draggable
+    utility:DraggingEnabled(TopBar, Main)
+    
+    -- Minimize functionality
+    local minimized = false
+    MinimizeBtn.MouseButton1Click:Connect(function()
+        minimized = not minimized
+        
+        if minimized then
+            utility:Tween(Main, {Size = UDim2.new(0, 600, 0, 30)}, 0.3)
+        else
+            utility:Tween(Main, {Size = UDim2.new(0, 600, 0, 350)}, 0.3)
+        end
+    end)
+    
+    -- Toggle GUI with LeftControl key
+    local guiVisible = true
+    UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.LeftControl then
+            guiVisible = not guiVisible
+            RedEngineGUI.Enabled = guiVisible
+        end
+    end)
+    
+    return {
+        RedEngineGUI = RedEngineGUI,
+        Main = Main
+    }
+end
+
+-- Initialize the GUI
+local Window = Library:CreateWindow("RedEngine")
+
+-- Anti-AFK functionality
+local antiAFK = false
+local antiAFKConnection
+
+local function setupAntiAFK()
+    if antiAFK then
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+        end
+        
+        antiAFKConnection = RunService.Heartbeat:Connect(function()
+            local VirtualUser = game:GetService("VirtualUser")
+            VirtualUser:CaptureController()
+            VirtualUser:ClickButton2(Vector2.new())
+        end)
+    else
+        if antiAFKConnection then
+            antiAFKConnection:Disconnect()
+            antiAFKConnection = nil
+        end
+    end
+end
+
+-- Infinite Jump functionality
+local infiniteJump = false
+local infiniteJumpConnection
+
+local function setupInfiniteJump()
+    if infiniteJump then
+        if infiniteJumpConnection then
+            infiniteJumpConnection:Disconnect()
+        end
+        
+        infiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
+            Player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+        end)
+    else
+        if infiniteJumpConnection then
+            infiniteJumpConnection:Disconnect()
+            infiniteJumpConnection = nil
+        end
+    end
+end
+
+-- No Clip functionality
+local noClip = false
+local noClipConnection
+
+local function setupNoClip()
+    if noClip then
+        if noClipConnection then
+            noClipConnection:Disconnect()
+        end
+        
+        noClipConnection = RunService.Stepped:Connect(function()
+            if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                for _, part in pairs(Player.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end)
+    else
+        if noClipConnection then
+            noClipConnection:Disconnect()
+            noClipConnection = nil
+            
+            if Player.Character then
+                for _, part in pairs(Player.Character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+end
+
+print("RedEngine GUI loaded successfully!")
