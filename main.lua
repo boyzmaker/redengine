@@ -57,7 +57,7 @@ function utility:DraggingEnabled(frame, parent)
 end
 
 -- Function to load image from URL
-function utility:LoadImage(https://static.wikia.nocookie.net/roblox-blox-piece/images/4/43/DragonFruit.png/revision/latest?cb=20241218114129)
+function utility:LoadImage("https://static.wikia.nocookie.net/roblox-blox-piece/images/4/43/DragonFruit.png/revision/latest?cb=20241218114129")
     local success, result = pcall(function()
         return game:HttpGet(url)
     end)
