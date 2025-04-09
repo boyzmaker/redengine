@@ -523,7 +523,7 @@ function Library:CreateWindow(hubname)
     local RightColumnLayout = Instance.new("UIListLayout")
     RightColumnLayout.Parent = RightColumn
     RightColumnLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    RightColumnLayout.Padding = UDim.new(0, 10)
+    LeftColumnLayout.Padding = UDim.new(0, 10)
 
     -- Create changelog section
     local ChangelogSection = Instance.new("Frame")
@@ -682,6 +682,13 @@ function Library:CreateWindow(hubname)
         -- Apply hand cursor to toggle button
         utility:ApplyHandCursor(ToggleButton)
         
+        ToggleButton.Selectable = false
+        ToggleButton.Active = true
+        ToggleButton.ClipsDescendants = true
+        
+        -- Apply hand cursor to toggle button
+        utility:ApplyHandCursor(ToggleButton)
+        
         local UICorner_Button = Instance.new("UICorner")
         UICorner_Button.CornerRadius = UDim.new(0, 10)
         UICorner_Button.Parent = ToggleButton
@@ -815,7 +822,7 @@ function Library:CreateWindow(hubname)
         UICorner_Button.Parent = DropdownButton
         
         -- Create dropdown options container with high ZIndex
-        local OptionsContainer = Instance.new("Frame")
+        local OptionsContainer = Instance.new("ScrollingFrame")
         OptionsContainer.Name = "OptionsContainer"
         OptionsContainer.Parent = RedEngineGUI
         OptionsContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
@@ -824,6 +831,11 @@ function Library:CreateWindow(hubname)
         OptionsContainer.Size = UDim2.new(0, 200, 0, 0)
         OptionsContainer.Visible = false
         OptionsContainer.ZIndex = 100
+        OptionsContainer.ScrollBarThickness = 4
+        OptionsContainer.ScrollingEnabled = true
+        OptionsContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+        OptionsContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        OptionsContainer.ClipsDescendants = true
         
         local UICorner_Options = Instance.new("UICorner")
         UICorner_Options.CornerRadius = UDim.new(0, 4)
@@ -896,16 +908,21 @@ function Library:CreateWindow(hubname)
             dropdownOpen = not dropdownOpen
             
             if dropdownOpen then
-                -- Position the options container
-                local buttonPos = DropdownButton.AbsolutePosition
-                local buttonSize = DropdownButton.AbsoluteSize
+                -- Position the options container relative to the UI
+                local buttonAbsPos = DropdownButton.AbsolutePosition
+                local buttonAbsSize = DropdownButton.AbsoluteSize
+                local mainGuiPos = RedEngineGUI.AbsolutePosition
                 
-                OptionsContainer.Position = UDim2.new(0, buttonPos.X, 0, buttonPos.Y + buttonSize.Y + 5)
-                OptionsContainer.Size = UDim2.new(0, buttonSize.X, 0, 0)
+                -- Calculate relative position to the GUI
+                local relativeX = buttonAbsPos.X - mainGuiPos.X
+                local relativeY = buttonAbsPos.Y - mainGuiPos.Y + buttonAbsSize.Y + 5
+                
+                OptionsContainer.Position = UDim2.new(0, relativeX, 0, relativeY)
+                OptionsContainer.Size = UDim2.new(0, buttonAbsSize.X, 0, 0)
                 OptionsContainer.Visible = true
                 
-                -- Animate opening
-                utility:Tween(OptionsContainer, {Size = UDim2.new(0, buttonSize.X, 0, math.min(#options * 30, 150))}, 0.2)
+                -- Animate opening with max height for scrolling
+                utility:Tween(OptionsContainer, {Size = UDim2.new(0, buttonAbsSize.X, 0, math.min(#options * 30, 150))}, 0.2)
                 utility:Tween(DropdownButton, {BackgroundColor3 = colors.secondary}, 0.2)
             else
                 -- Animate closing
@@ -1031,6 +1048,157 @@ function Library:CreateWindow(hubname)
         elseif selectedSea == "Third Sea" then
             ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelZou")
         end
+    end)
+    
+    -- Island Teleport section
+    local IslandCheck = { -- Keep the island list
+        "Start Island",
+        "Marine Start",
+        "Middle Town",
+        "Jungle",
+        "Pirate Village",
+        "Desert",
+        "Frozen Village",
+        "Marine Ford",
+        "Colosseum 1",
+        "Sky island 1",
+        "Sky island 2",
+        "Sky island 3",
+        "Sky island 4",
+        "Prison",
+        "Magma Village",
+        "UndeyWater City",
+        "Fountain City",
+        "House Cyborgs",
+        "Shanks Room"
+    }
+    local SelectedIsland = "Start Island" -- Keep the SelectedIsland variable
+
+    local function teleportToIsland(islandName)
+        local targetCFrame
+        if islandName == "Start Island" then
+            targetCFrame = CFrame.new(1071.2832, 16.3085976, 1426.86792)
+        elseif islandName == "Marine Start" then
+            targetCFrame = CFrame.new(-2573.3374, 6.88881969, 2046.99817)
+        elseif islandName == "Middle Town" then
+            targetCFrame = CFrame.new(-655.824158, 7.88708115, 1436.67908)
+        elseif islandName == "Jungle" then
+            targetCFrame = CFrame.new(-1249.77222, 11.8870859, 341.356476)
+        elseif islandName == "Pirate Village" then
+            targetCFrame = CFrame.new(-1122.34998, 4.78708982, 3855.91992)
+        elseif islandName == "Desert" then
+            targetCFrame = CFrame.new(1094.14587, 6.47350502, 4192.88721)
+        elseif islandName == "Frozen Village" then
+            targetCFrame = CFrame.new(1198.00928, 27.0074959, -1211.73376)
+        elseif islandName == "Marine Ford" then
+            targetCFrame = CFrame.new(-4505.375, 20.687294, 4260.55908)
+        elseif islandName == "Colosseum 1" then
+            targetCFrame = CFrame.new(-1428.35474, 7.38933945, -3014.37305)
+        elseif islandName == "Sky island 1" then
+            targetCFrame = CFrame.new(-4970.21875, 717.707275, -2622.35449)
+        elseif islandName == "Sky island 2" then
+            targetCFrame = CFrame.new(-4813.0249, 903.708557, -1912.69055)
+        elseif islandName == "Sky island 3" then
+            targetCFrame = CFrame.new(-7952.31006, 5545.52832, -320.704956)
+        elseif islandName == "Sky island 4" then
+            targetCFrame = CFrame.new(-7793.43896, 5607.22168, -2016.58362)
+        elseif islandName == "Prison" then
+            targetCFrame = CFrame.new(4854.16455, 5.68742752, 740.194641)
+        elseif islandName == "Magma Village" then
+            targetCFrame = CFrame.new(-5231.75879, 8.61593437, 8467.87695)
+        elseif islandName == "UndeyWater City" then
+            targetCFrame = CFrame.new(4040.8516, 3.7796879, -1832.78418)
+        elseif islandName == "Fountain City" then
+            targetCFrame = CFrame.new(5132.7124, 4.53632832, 4037.8562)
+        elseif islandName == "House Cyborgs" then
+            targetCFrame = CFrame.new(6262.72559, 71.3003616, 3998.23047)
+        elseif islandName == "Shanks Room" then
+            targetCFrame = CFrame.new(-1442.16553, 29.8788261, -28.3547478)
+        elseif islandName == "Dock" then
+            targetCFrame = CFrame.new(82.9490662, 18.0710983, 2834.98779)
+        elseif islandName == "Kingdom of Rose" then
+            targetCFrame = CFrame.new(-394.983521, 118.503128, 1245.8446)
+        elseif islandName == "Mansion 1" then
+            targetCFrame = CFrame.new(-390.096313, 331.886475, 673.464966)
+        elseif islandName == "Flamingo Room" then
+            targetCFrame = CFrame.new(2302.19019, 15.1778421, 663.811035)
+        elseif islandName == "Green Zone" then
+            targetCFrame = CFrame.new(-2372.14697, 72.9919434, -3166.51416)
+        elseif islandName == "Cafe" then
+            targetCFrame = CFrame.new(-385.250916, 73.0458984, 297.388397)
+        elseif islandName == "Factory" then
+            targetCFrame = CFrame.new(430.42569, 210.019623, -432.504791)
+        elseif islandName == "Colosseum 2" then
+            targetCFrame = CFrame.new(-1836.58191, 44.5890656, 1360.30652)
+        elseif islandName == "Grave Island" then
+            targetCFrame = CFrame.new(-5411.47607, 48.8234024, -721.272522)
+        elseif islandName == "Snow Mountain" then
+            targetCFrame = CFrame.new(511.825226, 401.765198, -5380.396)
+        elseif islandName == "Cold Island" then
+            targetCFrame = CFrame.new(-6026.96484, 14.7461271, -5071.96338)
+        elseif islandName == "Hot Island" then
+            targetCFrame = CFrame.new(-5478.39209, 15.9775667, -5246.9126)
+        elseif islandName == "Cursed Ship" then
+            targetCFrame = CFrame.new(902.059143, 124.752518, 33071.8125)
+        elseif islandName == "Ice Castle" then
+            targetCFrame = CFrame.new(5400.40381, 28.21698, -6236.99219)
+        elseif islandName == "Forgotten Island" then
+            targetCFrame = CFrame.new(-3043.31543, 238.881271, -10191.5791)
+        elseif islandName == "Usoapp Island" then
+            targetCFrame = CFrame.new(4748.78857, 8.35370827, 2849.57959)
+        elseif islandName == "Minisky Island" then
+            targetCFrame = CFrame.new(-260.358917, 49325.49609375, -35260)
+        elseif islandName == "Port Town" then
+            targetCFrame = CFrame.new(-610.309692, 57.8323097, 6436.33594)
+        elseif islandName == "Hydra Island" then
+            targetCFrame = CFrame.new(5229.99561, 603.916565, 345.154022)
+        elseif islandName == "Great Tree" then
+            targetCFrame = CFrame.new(2174.94873, 28.7312393, -6728.83154)
+        elseif islandName == "Castle on the Sea" then
+            targetCFrame = CFrame.new(-5477.62842, 313.794739, -2808.4585)
+        elseif islandName == "Floating Turtle" then
+            targetCFrame = CFrame.new(-10919.2998, 331.788452, -8637.57227)
+        elseif islandName == "Mansion 2" then
+            targetCFrame = CFrame.new(-12553.8125, 332.403961, -7621.91748)
+        elseif islandName == "Secret Temple" then
+            targetCFrame = CFrame.new(5217.35693, 6.56511116, 1100.88159)
+        elseif islandName == "Friendly Arena" then
+            targetCFrame = CFrame.new(5220.28955, 72.8193436, -1450.86304)
+        elseif islandName == "Beautiful Pirate Domain" then
+            targetCFrame = CFrame.new(5310.8095703125, 21.594484329224, 129.39053344727)
+        elseif islandName == "Teler Park" then
+            targetCFrame = CFrame.new(-9512.3623046875, 142.13258361816, 5548.845703125)
+        elseif islandName == "Peanut Island" then
+            targetCFrame = CFrame.new(-2142, 48, -10031)
+        elseif islandName == "Chocolate Island" then
+            targetCFrame = CFrame.new(156.896484, 30.5935211, -12662.7031, -0.573599219, 0, 0.81913656, 0, 1, 0, -0.81913656, 0, -0.573599219)
+        elseif islandName == "Ice Cream Island" then
+            targetCFrame = CFrame.new(-949, 59, -10907)
+        elseif islandName == "Haunted Castle" then
+            targetCFrame = CFrame.new(-9530.61035, -132.860657, 5763.13477)
+        elseif islandName == "Cake Loaf" then
+            targetCFrame = CFrame.new(-2099.33154, 66.9970703, -12128.585, 0.997561574, 0, 0.0697919354, 0, 1, 0, -0.0697919354, 0, 0.997561574)
+        elseif islandName == "Candy Cane" then
+            targetCFrame = CFrame.new(-1530.97144, 13.728817, -14770.0889, 0.898790359, -0, -0.438378751, 0, 1, -0, 0.438378751, 0, 0.898790359)
+        elseif islandName == "Tiki Outpost" then
+            targetCFrame = CFrame.new(-16548.8164, 55.6059914, -172.8125, 0.213092566, -0, -0.977032006, 0, 1, -0, 0.977032006, 0, 0.213092566)
+        elseif islandName == "Raid Lab" then
+            targetCFrame = CFrame.new(-5057.146484375, 314.54132080078, -2934.7995605469)
+        elseif islandName == "Mini Sky" then
+            targetCFrame = CFrame.new(-263.66668701172, 49325.49609375, -35260)
+        elseif islandName == "Sea Beast" then
+            targetCFrame = game:GetService("Workspace")["_WorldOrigin"].Locations["Sea of Treats"].CFrame
+        end
+
+        Tween(targetCFrame)
+    end
+
+    local IslandDropdown, currentIsland = createDropdown(TeleportTab, "Select Island", IslandCheck, function(selected)
+        SelectedIsland = selected
+    end, "Start Island")
+
+    createButton(TeleportTab, "Teleport to Island", function()
+        teleportToIsland(SelectedIsland)
     end)
     
     -- Add player info to the Settings tab
@@ -1262,6 +1430,88 @@ function Library:CreateWindow(hubname)
         table.insert(ActiveFeatures, "NoClip")
     end
     
+    -- Add new settings to the Settings tab
+    local SettingsColumn = Instance.new("Frame")
+    SettingsColumn.Name = "SettingsColumn"
+    SettingsColumn.Parent = SettingsTab
+    SettingsColumn.BackgroundTransparency = 1
+    SettingsColumn.Size = UDim2.new(1, 0, 1, 0)
+
+    local SettingsLayout = Instance.new("UIListLayout")
+    SettingsLayout.Parent = SettingsColumn
+    SettingsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    SettingsLayout.Padding = UDim.new(0, 10)
+
+    local WeaponList = {"Melee","Blox Fruit","Sword","Gun"}
+    local SelectWeaponFarm = "Melee"
+    
+    local WeaponDropdown, currentWeapon = createDropdown(SettingsColumn, "Select Weapon", WeaponList, function(selected)
+        SelectWeaponFarm = selected
+    end, "Melee")
+
+    local FarmTypeList = {"Quest", "No Quest"}
+    local SelectFarmType = "Quest"
+
+    local FarmTypeDropdown, currentFarmType = createDropdown(SettingsColumn, "Select Farm Type", FarmTypeList, function(selected)
+        SelectFarmType = selected
+    end, "Quest")
+
+    local DistanceFarmTextbox = Instance.new("TextBox")
+    DistanceFarmTextbox.Name = "DistanceFarmTextbox"
+    DistanceFarmTextbox.Parent = SettingsColumn
+    DistanceFarmTextbox.PlaceholderText = "Distance Farm (Default 250)"
+    DistanceFarmTextbox.Size = UDim2.new(1, 0, 0, 40)
+    DistanceFarmTextbox.Font = Enum.Font.Gotham
+    DistanceFarmTextbox.TextSize = 14
+    DistanceFarmTextbox.TextColor3 = colors.text
+    DistanceFarmTextbox.BackgroundColor3 = colors.border
+    DistanceFarmTextbox.BorderSizePixel = 0
+    DistanceFarmTextbox.TextXAlignment = Enum.TextXAlignment.Left
+    DistanceFarmTextbox.ClearTextOnFocus = false
+    DistanceFarmTextbox.Text = "250"
+
+    local UICorner_DistanceFarm = Instance.new("UICorner")
+    UICorner_DistanceFarm.CornerRadius = UDim.new(0, 4)
+    UICorner_DistanceFarm.Parent = DistanceFarmTextbox
+
+    local FastAttackDelayList = {"Slow", "Normal", "Fast"}
+    local FastAttackSelected = "Normal"
+
+    local FastAttackDropdown, currentFastAttack = createDropdown(SettingsColumn, "Fast Attack Delay", FastAttackDelayList, function(selected)
+        FastAttackSelected = selected
+    end, "Normal")
+
+    local BringMobsDistanceTextbox = Instance.new("TextBox")
+    BringMobsDistanceTextbox.Name = "BringMobsDistanceTextbox"
+    BringMobsDistanceTextbox.Parent = SettingsColumn
+    BringMobsDistanceTextbox.PlaceholderText = "Bring Mobs Distance (Default 250)"
+    BringMobsDistanceTextbox.Size = UDim2.new(1, 0, 0, 40)
+    BringMobsDistanceTextbox.Font = Enum.Font.Gotham
+    BringMobsDistanceTextbox.TextSize = 14
+    BringMobsDistanceTextbox.TextColor3 = colors.text
+    BringMobsDistanceTextbox.BackgroundColor3 = colors.border
+    BringMobsDistanceTextbox.BorderSizePixel = 0
+    BringMobsDistanceTextbox.TextXAlignment = Enum.TextXAlignment.Left
+    BringMobsDistanceTextbox.ClearTextOnFocus = false
+    BringMobsDistanceTextbox.Text = "250"
+
+    local UICorner_BringMobsDistance = Instance.new("UICorner")
+    UICorner_BringMobsDistance.CornerRadius = UDim.new(0, 4)
+    UICorner_BringMobsDistance.Parent = BringMobsDistanceTextbox
+
+    local BusoHakiToggle, BusoHakiState = createToggle(SettingsColumn, "Buso Haki", function(state)
+        BusoHaki = Value
+    end, false)
+
+    -- Apply hand cursor to text box
+    utility:ApplyHandCursor(DistanceFarmTextbox)
+    utility:ApplyHandCursor(BringMobsDistanceTextbox)
+
+    -- Update the settings tab's layout order
+    PlayerInfo.LayoutOrder = 1
+    WorldInfo.LayoutOrder = 2
+    SettingsColumn.LayoutOrder = 3
+
     return {
         RedEngineGUI = RedEngineGUI,
         Main = Main,
@@ -1345,6 +1595,44 @@ function setupNoClip(enabled)
             end
         end
         print("No Clip disabled")
+    end
+end
+
+--// TWEEN PLAYER
+function Tween(P1)
+    local Distance = (P1.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    if Distance > 1 then
+        Speed = 350
+    end
+    game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Play()
+    if _G.StopTween then
+        game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Cancel()
+    end
+end
+
+--// TP ISLAND
+function TP2(P1)
+    local Distance = (P1.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+    if Distance > 1 then
+        Speed = 350
+    end
+    game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Play()
+    if _G.StopTween2 then
+        game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart,TweenInfo.new(Distance/Speed, Enum.EasingStyle.Linear),{CFrame = P1}):Cancel()
+    end
+    _G.Clip2 = true
+    wait(Distance/Speed)
+    _G.Clip2 = false
+end
+
+--// CANCEL TWEEN
+function CancelTween(target)
+    if not target then
+        _G.StopTween = true
+        wait(.1)
+        Tween(game:GetService("Players").LocalPlayer.Character.HumanoidRootPart.CFrame)
+        wait(.1)
+        _G.StopTween = false
     end
 end
 
