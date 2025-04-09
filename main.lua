@@ -9,11 +9,34 @@ local UserInputService = game:GetService("UserInputService")
 local TextService = game:GetService("TextService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- Variables
 local Player = Players.LocalPlayer
 local Mouse = Player:GetMouse()
 local Camera = workspace.CurrentCamera
+
+-- Store all connections for proper cleanup
+local Connections = {}
+local ActiveFeatures = {}
+
+-- Hand cursor icon URL - using a transparent hand cursor
+local HandCursorIcon = "rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png"
+local DefaultCursor = ""
+
+-- World Check
+local First_Sea = false
+local Second_Sea = false
+local Third_Sea = false
+local placeId = game.PlaceId
+
+if placeId == 2753915549 then
+    First_Sea = true
+elseif placeId == 4442272183 then
+    Second_Sea = true
+elseif placeId == 7449423635 then
+    Third_Sea = true
+end
 
 -- Utility Functions
 local utility = {}
@@ -29,44 +52,64 @@ function utility:DraggingEnabled(frame, parent)
     local dragging = false
     local dragInput, mousePos, framePos
 
-    frame.InputBegan:Connect(function(input)
+    local connection1 = frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
             mousePos = input.Position
             framePos = parent.Position
-            input.Changed:Connect(function()
+            
+            local connection = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
                 end
             end)
+            table.insert(Connections, connection)
         end
     end)
-
-    frame.InputChanged:Connect(function(input)
+    
+    local connection2 = frame.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement then
             dragInput = input
         end
     end)
-
-    UserInputService.InputChanged:Connect(function(input)
+    
+    local connection3 = UserInputService.InputChanged:Connect(function(input)
         if input == dragInput and dragging then
             local delta = input.Position - mousePos
             parent.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
         end
     end)
-end
-
--- Function to load image from URL
-function utility:LoadImage("https://static.wikia.nocookie.net/roblox-blox-piece/images/4/43/DragonFruit.png/revision/latest?cb=20241218114129")
-    local success, result = pcall(function()
-        return game:HttpGet(url)
+    
+    -- Set hand cursor for draggable area
+    local mouseEnterConn = frame.MouseEnter:Connect(function()
+        Mouse.Icon = HandCursorIcon
     end)
     
-    if success then
-        return result
-    else
-        return nil
-    end
+    local mouseLeaveConn = frame.MouseLeave:Connect(function()
+        if not dragging then
+            Mouse.Icon = DefaultCursor
+        end
+    end)
+    
+    table.insert(Connections, connection1)
+    table.insert(Connections, connection2)
+    table.insert(Connections, connection3)
+    table.insert(Connections, mouseEnterConn)
+    table.insert(Connections, mouseLeaveConn)
+end
+
+-- Function to apply hand cursor to an element
+function utility:ApplyHandCursor(element)
+    local mouseEnterConn = element.MouseEnter:Connect(function()
+        Mouse.Icon = HandCursorIcon
+    end)
+    
+    local mouseLeaveConn = element.MouseLeave:Connect(function()
+        Mouse.Icon = DefaultCursor
+    end)
+    
+    table.insert(Connections, mouseEnterConn)
+    table.insert(Connections, mouseLeaveConn)
 end
 
 -- Library
@@ -91,10 +134,6 @@ local changelogs = {
     {version = "v1.0.0", date = "2023-04-20", changes = {"Initial release", "Basic functionality implemented"}}
 }
 
--- DragonFruit logo (base64 encoded to avoid external dependencies)
--- This is a placeholder, we'll use direct loading from URL instead
-local dragonFruitBase64 = ""
-
 function Library:CreateWindow(hubname)
     local RedEngineGUI = Instance.new("ScreenGui")
     local Main = Instance.new("Frame")
@@ -102,7 +141,7 @@ function Library:CreateWindow(hubname)
     local TopBar = Instance.new("Frame")
     local UICorner_2 = Instance.new("UICorner")
     local Title = Instance.new("TextLabel")
-    local MinimizeBtn = Instance.new("ImageButton")
+    local MinimizeBtn = Instance.new("TextButton")
     local NavBar = Instance.new("Frame")
     local UICorner_3 = Instance.new("UICorner")
     local NavBarLayout = Instance.new("UIListLayout")
@@ -137,6 +176,8 @@ function Library:CreateWindow(hubname)
     RedEngineGUI.Name = "RedEngineGUI"
     RedEngineGUI.Parent = game.CoreGui
     RedEngineGUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    RedEngineGUI.ResetOnSpawn = false
+    RedEngineGUI.DisplayOrder = 999 -- Ensure it's on top
 
     Main.Name = "Main"
     Main.Parent = RedEngineGUI
@@ -161,41 +202,35 @@ function Library:CreateWindow(hubname)
     Title.Name = "Title"
     Title.Parent = TopBar
     Title.BackgroundTransparency = 1
-    Title.Position = UDim2.new(0, 40, 0, 0)
+    Title.Position = UDim2.new(0, 10, 0, 0)
     Title.Size = UDim2.new(1, -80, 1, 0)
     Title.Font = Enum.Font.GothamBold
     Title.Text = hubname or "RedEngine"
     Title.TextColor3 = colors.text
     Title.TextSize = 16
+    Title.TextXAlignment = Enum.TextXAlignment.Left
 
-    -- Create and setup the logo
-    local Logo = Instance.new("ImageLabel")
-    Logo.Name = "Logo"
-    Logo.Parent = TopBar
-    Logo.BackgroundTransparency = 1
-    Logo.Position = UDim2.new(0, 5, 0, 2)
-    Logo.Size = UDim2.new(0, 26, 0, 26)
-    
-    -- Try to load the image from GitHub
-    local imageUrl = "https://raw.githubusercontent.com/boyzmaker/redengine/main/DragonFruit.png"
-    
-    -- Use content provider to preload the image
-    game:GetService("ContentProvider"):PreloadAsync({imageUrl})
-    Logo.Image = imageUrl
-
-    -- Create a circular minimize button with the DragonFruit image
+    -- Create a circular minimize button with "RE" text
     MinimizeBtn.Name = "MinimizeBtn"
     MinimizeBtn.Parent = TopBar
     MinimizeBtn.BackgroundColor3 = colors.secondary
-    MinimizeBtn.BackgroundTransparency = 0
-    MinimizeBtn.Position = UDim2.new(1, -30, 0, 5)
+    MinimizeBtn.Position = UDim2.new(1, -30, 0.5, -10)
     MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
-    MinimizeBtn.Image = imageUrl
-    MinimizeBtn.ImageColor3 = colors.text
+    MinimizeBtn.Font = Enum.Font.GothamBold
+    MinimizeBtn.Text = "RE"
+    MinimizeBtn.TextColor3 = colors.text
+    MinimizeBtn.TextSize = 10
+    MinimizeBtn.AutoButtonColor = false
+    MinimizeBtn.Selectable = false
+    MinimizeBtn.Active = true
+    MinimizeBtn.ClipsDescendants = true
     
     local UICorner_MinBtn = Instance.new("UICorner")
     UICorner_MinBtn.CornerRadius = UDim.new(1, 0)
     UICorner_MinBtn.Parent = MinimizeBtn
+    
+    -- Apply hand cursor to minimize button
+    utility:ApplyHandCursor(MinimizeBtn)
 
     NavBar.Name = "NavBar"
     NavBar.Parent = Main
@@ -229,8 +264,11 @@ function Library:CreateWindow(hubname)
     HomeTab.BackgroundTransparency = 1
     HomeTab.BorderSizePixel = 0
     HomeTab.Size = UDim2.new(1, 0, 1, 0)
-    HomeTab.ScrollBarThickness = 0
+    HomeTab.ScrollBarThickness = 4
     HomeTab.Visible = true
+    HomeTab.ScrollingEnabled = true
+    HomeTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    HomeTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout.Parent = HomeTab
     UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -240,6 +278,7 @@ function Library:CreateWindow(hubname)
     UIPadding.PaddingLeft = UDim.new(0, 10)
     UIPadding.PaddingTop = UDim.new(0, 10)
     UIPadding.PaddingRight = UDim.new(0, 10)
+    UIPadding.PaddingBottom = UDim.new(0, 10)
 
     ServerTab.Name = "ServerTab"
     ServerTab.Parent = ContentContainer
@@ -247,8 +286,11 @@ function Library:CreateWindow(hubname)
     ServerTab.BackgroundTransparency = 1
     ServerTab.BorderSizePixel = 0
     ServerTab.Size = UDim2.new(1, 0, 1, 0)
-    ServerTab.ScrollBarThickness = 0
+    ServerTab.ScrollBarThickness = 4
     ServerTab.Visible = false
+    ServerTab.ScrollingEnabled = true
+    ServerTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ServerTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_2.Parent = ServerTab
     UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
@@ -258,6 +300,7 @@ function Library:CreateWindow(hubname)
     UIPadding_2.PaddingLeft = UDim.new(0, 10)
     UIPadding_2.PaddingTop = UDim.new(0, 10)
     UIPadding_2.PaddingRight = UDim.new(0, 10)
+    UIPadding_2.PaddingBottom = UDim.new(0, 10)
 
     TeleportTab.Name = "TeleportTab"
     TeleportTab.Parent = ContentContainer
@@ -265,8 +308,11 @@ function Library:CreateWindow(hubname)
     TeleportTab.BackgroundTransparency = 1
     TeleportTab.BorderSizePixel = 0
     TeleportTab.Size = UDim2.new(1, 0, 1, 0)
-    TeleportTab.ScrollBarThickness = 0
+    TeleportTab.ScrollBarThickness = 4
     TeleportTab.Visible = false
+    TeleportTab.ScrollingEnabled = true
+    TeleportTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TeleportTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_3.Parent = TeleportTab
     UIListLayout_3.SortOrder = Enum.SortOrder.LayoutOrder
@@ -276,6 +322,7 @@ function Library:CreateWindow(hubname)
     UIPadding_3.PaddingLeft = UDim.new(0, 10)
     UIPadding_3.PaddingTop = UDim.new(0, 10)
     UIPadding_3.PaddingRight = UDim.new(0, 10)
+    UIPadding_3.PaddingBottom = UDim.new(0, 10)
 
     MainFarmTab.Name = "MainFarmTab"
     MainFarmTab.Parent = ContentContainer
@@ -283,8 +330,11 @@ function Library:CreateWindow(hubname)
     MainFarmTab.BackgroundTransparency = 1
     MainFarmTab.BorderSizePixel = 0
     MainFarmTab.Size = UDim2.new(1, 0, 1, 0)
-    MainFarmTab.ScrollBarThickness = 0
+    MainFarmTab.ScrollBarThickness = 4
     MainFarmTab.Visible = false
+    MainFarmTab.ScrollingEnabled = true
+    MainFarmTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    MainFarmTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_4.Parent = MainFarmTab
     UIListLayout_4.SortOrder = Enum.SortOrder.LayoutOrder
@@ -294,6 +344,7 @@ function Library:CreateWindow(hubname)
     UIPadding_4.PaddingLeft = UDim.new(0, 10)
     UIPadding_4.PaddingTop = UDim.new(0, 10)
     UIPadding_4.PaddingRight = UDim.new(0, 10)
+    UIPadding_4.PaddingBottom = UDim.new(0, 10)
 
     SubFarmTab.Name = "SubFarmTab"
     SubFarmTab.Parent = ContentContainer
@@ -301,8 +352,11 @@ function Library:CreateWindow(hubname)
     SubFarmTab.BackgroundTransparency = 1
     SubFarmTab.BorderSizePixel = 0
     SubFarmTab.Size = UDim2.new(1, 0, 1, 0)
-    SubFarmTab.ScrollBarThickness = 0
+    SubFarmTab.ScrollBarThickness = 4
     SubFarmTab.Visible = false
+    SubFarmTab.ScrollingEnabled = true
+    SubFarmTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    SubFarmTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_5.Parent = SubFarmTab
     UIListLayout_5.SortOrder = Enum.SortOrder.LayoutOrder
@@ -312,6 +366,7 @@ function Library:CreateWindow(hubname)
     UIPadding_5.PaddingLeft = UDim.new(0, 10)
     UIPadding_5.PaddingTop = UDim.new(0, 10)
     UIPadding_5.PaddingRight = UDim.new(0, 10)
+    UIPadding_5.PaddingBottom = UDim.new(0, 10)
 
     MacroTab.Name = "MacroTab"
     MacroTab.Parent = ContentContainer
@@ -319,8 +374,11 @@ function Library:CreateWindow(hubname)
     MacroTab.BackgroundTransparency = 1
     MacroTab.BorderSizePixel = 0
     MacroTab.Size = UDim2.new(1, 0, 1, 0)
-    MacroTab.ScrollBarThickness = 0
+    MacroTab.ScrollBarThickness = 4
     MacroTab.Visible = false
+    MacroTab.ScrollingEnabled = true
+    MacroTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    MacroTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_6.Parent = MacroTab
     UIListLayout_6.SortOrder = Enum.SortOrder.LayoutOrder
@@ -330,6 +388,7 @@ function Library:CreateWindow(hubname)
     UIPadding_6.PaddingLeft = UDim.new(0, 10)
     UIPadding_6.PaddingTop = UDim.new(0, 10)
     UIPadding_6.PaddingRight = UDim.new(0, 10)
+    UIPadding_6.PaddingBottom = UDim.new(0, 10)
 
     ShopTab.Name = "ShopTab"
     ShopTab.Parent = ContentContainer
@@ -337,8 +396,11 @@ function Library:CreateWindow(hubname)
     ShopTab.BackgroundTransparency = 1
     ShopTab.BorderSizePixel = 0
     ShopTab.Size = UDim2.new(1, 0, 1, 0)
-    ShopTab.ScrollBarThickness = 0
+    ShopTab.ScrollBarThickness = 4
     ShopTab.Visible = false
+    ShopTab.ScrollingEnabled = true
+    ShopTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    ShopTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_7.Parent = ShopTab
     UIListLayout_7.SortOrder = Enum.SortOrder.LayoutOrder
@@ -348,6 +410,7 @@ function Library:CreateWindow(hubname)
     UIPadding_7.PaddingLeft = UDim.new(0, 10)
     UIPadding_7.PaddingTop = UDim.new(0, 10)
     UIPadding_7.PaddingRight = UDim.new(0, 10)
+    UIPadding_7.PaddingBottom = UDim.new(0, 10)
 
     SettingsTab.Name = "SettingsTab"
     SettingsTab.Parent = ContentContainer
@@ -355,8 +418,11 @@ function Library:CreateWindow(hubname)
     SettingsTab.BackgroundTransparency = 1
     SettingsTab.BorderSizePixel = 0
     SettingsTab.Size = UDim2.new(1, 0, 1, 0)
-    SettingsTab.ScrollBarThickness = 0
+    SettingsTab.ScrollBarThickness = 4
     SettingsTab.Visible = false
+    SettingsTab.ScrollingEnabled = true
+    SettingsTab.CanvasSize = UDim2.new(0, 0, 0, 0)
+    SettingsTab.AutomaticCanvasSize = Enum.AutomaticSize.Y
 
     UIListLayout_8.Parent = SettingsTab
     UIListLayout_8.SortOrder = Enum.SortOrder.LayoutOrder
@@ -366,6 +432,7 @@ function Library:CreateWindow(hubname)
     UIPadding_8.PaddingLeft = UDim.new(0, 10)
     UIPadding_8.PaddingTop = UDim.new(0, 10)
     UIPadding_8.PaddingRight = UDim.new(0, 10)
+    UIPadding_8.PaddingBottom = UDim.new(0, 10)
 
     -- Create tab buttons in the specified order
     local tabButtons = {}
@@ -407,14 +474,22 @@ function Library:CreateWindow(hubname)
         TabButton.TextColor3 = i == 1 and colors.text or Color3.fromRGB(200, 200, 200)
         TabButton.TextSize = 14
         TabButton.LayoutOrder = i
+        TabButton.AutoButtonColor = false
+        TabButton.Selectable = false
+        TabButton.Active = true
+        TabButton.ClipsDescendants = true
         
         local UICorner_Button = Instance.new("UICorner")
         UICorner_Button.CornerRadius = UDim.new(0, 4)
         UICorner_Button.Parent = TabButton
         
-        TabButton.MouseButton1Click:Connect(function()
+        -- Apply hand cursor to tab button
+        utility:ApplyHandCursor(TabButton)
+        
+        local connection = TabButton.MouseButton1Click:Connect(function()
             switchTab(tab.name)
         end)
+        table.insert(Connections, connection)
         
         table.insert(tabButtons, TabButton)
     end
@@ -469,7 +544,7 @@ function Library:CreateWindow(hubname)
     ChangelogTitle.Size = UDim2.new(1, 0, 0, 30)
     ChangelogTitle.Font = Enum.Font.GothamBold
     ChangelogTitle.Text = "Changelog"
-    ChangelogTitle.TextColor3 = colors.text
+    ChangelogTitle.TextColor3 = colors.secondary
     ChangelogTitle.TextSize = 16
     
     local ChangelogList = Instance.new("ScrollingFrame")
@@ -482,6 +557,11 @@ function Library:CreateWindow(hubname)
     ChangelogList.ScrollBarThickness = 4
     ChangelogList.ScrollingDirection = Enum.ScrollingDirection.Y
     ChangelogList.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    ChangelogList.ScrollingEnabled = true
+    ChangelogList.ClipsDescendants = true
+    
+    -- Apply hand cursor to scrolling frame
+    utility:ApplyHandCursor(ChangelogList)
     
     local ChangelogLayout = Instance.new("UIListLayout")
     ChangelogLayout.Parent = ChangelogList
@@ -512,6 +592,8 @@ function Library:CreateWindow(hubname)
         VersionLabel.TextColor3 = colors.secondary
         VersionLabel.TextSize = 14
         VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
+        VersionLabel.Active = false
+        VersionLabel.Selectable = false
         
         local DateLabel = Instance.new("TextLabel")
         DateLabel.Name = "DateLabel"
@@ -524,6 +606,8 @@ function Library:CreateWindow(hubname)
         DateLabel.TextColor3 = colors.text
         DateLabel.TextSize = 12
         DateLabel.TextXAlignment = Enum.TextXAlignment.Right
+        DateLabel.Active = false
+        DateLabel.Selectable = false
         
         local ChangesList = Instance.new("Frame")
         ChangesList.Name = "ChangesList"
@@ -549,6 +633,8 @@ function Library:CreateWindow(hubname)
             ChangeItem.TextSize = 12
             ChangeItem.TextXAlignment = Enum.TextXAlignment.Left
             ChangeItem.TextWrapped = true
+            ChangeItem.Active = false
+            ChangeItem.Selectable = false
         end
     end
 
@@ -575,6 +661,8 @@ function Library:CreateWindow(hubname)
         ToggleLabel.TextColor3 = colors.text
         ToggleLabel.TextSize = 14
         ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        ToggleLabel.Active = false
+        ToggleLabel.Selectable = false
         
         local ToggleButton = Instance.new("TextButton")
         ToggleButton.Name = "ToggleButton"
@@ -586,6 +674,13 @@ function Library:CreateWindow(hubname)
         ToggleButton.Text = ""
         ToggleButton.TextColor3 = colors.text
         ToggleButton.TextSize = 14
+        ToggleButton.AutoButtonColor = false
+        ToggleButton.Selectable = false
+        ToggleButton.Active = true
+        ToggleButton.ClipsDescendants = true
+        
+        -- Apply hand cursor to toggle button
+        utility:ApplyHandCursor(ToggleButton)
         
         local UICorner_Button = Instance.new("UICorner")
         UICorner_Button.CornerRadius = UDim.new(0, 10)
@@ -608,7 +703,7 @@ function Library:CreateWindow(hubname)
             callback(toggled)
         end
         
-        ToggleButton.MouseButton1Click:Connect(function()
+        local connection = ToggleButton.MouseButton1Click:Connect(function()
             toggled = not toggled
             
             if toggled then
@@ -623,6 +718,7 @@ function Library:CreateWindow(hubname)
                 callback(toggled)
             end
         end)
+        table.insert(Connections, connection)
         
         return ToggleFrame, toggled
     end
@@ -637,24 +733,33 @@ function Library:CreateWindow(hubname)
         ButtonFrame.Text = name
         ButtonFrame.TextColor3 = colors.text
         ButtonFrame.TextSize = 14
+        ButtonFrame.AutoButtonColor = false
+        ButtonFrame.Selectable = false
+        ButtonFrame.Active = true
+        ButtonFrame.ClipsDescendants = true
+        
+        -- Apply hand cursor to button
+        utility:ApplyHandCursor(ButtonFrame)
         
         local UICorner_Button = Instance.new("UICorner")
         UICorner_Button.CornerRadius = UDim.new(0, 4)
         UICorner_Button.Parent = ButtonFrame
         
-        ButtonFrame.MouseButton1Click:Connect(function()
+        local connection = ButtonFrame.MouseButton1Click:Connect(function()
             utility:Tween(ButtonFrame, {BackgroundColor3 = colors.highlight}, 0.1)
             if callback then
                 callback()
             end
-            wait(0.1)
+            task.wait(0.1)
             utility:Tween(ButtonFrame, {BackgroundColor3 = colors.primary}, 0.1)
         end)
+        table.insert(Connections, connection)
         
         return ButtonFrame
     end
     
     local function createDropdown(parent, name, options, callback, defaultOption)
+        -- Create a simple dropdown that doesn't use text input fields
         local DropdownFrame = Instance.new("Frame")
         DropdownFrame.Name = name .. "Dropdown"
         DropdownFrame.Parent = parent
@@ -678,6 +783,8 @@ function Library:CreateWindow(hubname)
         DropdownLabel.TextSize = 14
         DropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
         DropdownLabel.ZIndex = 1
+        DropdownLabel.Active = false
+        DropdownLabel.Selectable = false
         
         local DropdownButton = Instance.new("TextButton")
         DropdownButton.Name = "DropdownButton"
@@ -690,8 +797,14 @@ function Library:CreateWindow(hubname)
         DropdownButton.TextColor3 = colors.text
         DropdownButton.TextSize = 14
         DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
-        DropdownButton.TextTruncate = Enum.TextTruncate.AtEnd
-        DropdownButton.ZIndex = 1
+        DropdownButton.AutoButtonColor = false
+        DropdownButton.ZIndex = 2
+        DropdownButton.Selectable = false
+        DropdownButton.Active = true
+        DropdownButton.ClipsDescendants = true
+        
+        -- Apply hand cursor to dropdown button
+        utility:ApplyHandCursor(DropdownButton)
         
         local UIPadding = Instance.new("UIPadding")
         UIPadding.Parent = DropdownButton
@@ -701,74 +814,144 @@ function Library:CreateWindow(hubname)
         UICorner_Button.CornerRadius = UDim.new(0, 4)
         UICorner_Button.Parent = DropdownButton
         
-        local DropdownMenu = Instance.new("Frame")
-        DropdownMenu.Name = "DropdownMenu"
-        DropdownMenu.Parent = DropdownFrame
-        DropdownMenu.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        DropdownMenu.Position = UDim2.new(0, 120, 0, 40)
-        DropdownMenu.Size = UDim2.new(1, -130, 0, 0)
-        DropdownMenu.Visible = false
-        DropdownMenu.ZIndex = 10
-        DropdownMenu.ClipsDescendants = true
+        -- Create dropdown options container with high ZIndex
+        local OptionsContainer = Instance.new("Frame")
+        OptionsContainer.Name = "OptionsContainer"
+        OptionsContainer.Parent = RedEngineGUI
+        OptionsContainer.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        OptionsContainer.BorderSizePixel = 0
+        OptionsContainer.Position = UDim2.new(0, 0, 0, 0)
+        OptionsContainer.Size = UDim2.new(0, 200, 0, 0)
+        OptionsContainer.Visible = false
+        OptionsContainer.ZIndex = 100
         
-        local UICorner_Menu = Instance.new("UICorner")
-        UICorner_Menu.CornerRadius = UDim.new(0, 4)
-        UICorner_Menu.Parent = DropdownMenu
+        local UICorner_Options = Instance.new("UICorner")
+        UICorner_Options.CornerRadius = UDim.new(0, 4)
+        UICorner_Options.Parent = OptionsContainer
         
-        local DropdownLayout = Instance.new("UIListLayout")
-        DropdownLayout.Parent = DropdownMenu
-        DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        DropdownLayout.Padding = UDim.new(0, 5)
+        local OptionsLayout = Instance.new("UIListLayout")
+        OptionsLayout.Parent = OptionsContainer
+        OptionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        OptionsLayout.Padding = UDim.new(0, 2)
         
-        local DropdownPadding = Instance.new("UIPadding")
-        DropdownPadding.Parent = DropdownMenu
-        DropdownPadding.PaddingTop = UDim.new(0, 5)
-        DropdownPadding.PaddingBottom = UDim.new(0, 5)
+        local OptionsPadding = Instance.new("UIPadding")
+        OptionsPadding.Parent = OptionsContainer
+        OptionsPadding.PaddingTop = UDim.new(0, 5)
+        OptionsPadding.PaddingBottom = UDim.new(0, 5)
+        OptionsPadding.PaddingLeft = UDim.new(0, 5)
+        OptionsPadding.PaddingRight = UDim.new(0, 5)
         
-        local menuOpen = false
-        
-        local function toggleMenu()
-            menuOpen = not menuOpen
-            
-            if menuOpen then
-                DropdownMenu.Visible = true
-                utility:Tween(DropdownMenu, {Size = UDim2.new(1, -130, 0, math.min(#options * 30, 150))}, 0.2)
-            else
-                utility:Tween(DropdownMenu, {Size = UDim2.new(1, -130, 0, 0)}, 0.2)
-                wait(0.2)
-                DropdownMenu.Visible = false
-            end
-        end
-        
-        DropdownButton.MouseButton1Click:Connect(toggleMenu)
-        
+        -- Create option buttons
         for i, option in ipairs(options) do
             local OptionButton = Instance.new("TextButton")
             OptionButton.Name = "Option_" .. i
-            OptionButton.Parent = DropdownMenu
-            OptionButton.BackgroundTransparency = 1
-            OptionButton.Size = UDim2.new(1, 0, 0, 25)
+            OptionButton.Parent = OptionsContainer
+            OptionButton.BackgroundColor3 = colors.border
+            OptionButton.BackgroundTransparency = 0.5
+            OptionButton.Size = UDim2.new(1, -10, 0, 25)
             OptionButton.Font = Enum.Font.Gotham
             OptionButton.Text = option
             OptionButton.TextColor3 = colors.text
             OptionButton.TextSize = 14
-            OptionButton.ZIndex = 11
+            OptionButton.ZIndex = 101
+            OptionButton.AutoButtonColor = false
+            OptionButton.Selectable = false
+            OptionButton.Active = true
+            OptionButton.ClipsDescendants = true
             
-            OptionButton.MouseButton1Click:Connect(function()
+            -- Apply hand cursor to option button
+            utility:ApplyHandCursor(OptionButton)
+            
+            local UICorner_Option = Instance.new("UICorner")
+            UICorner_Option.CornerRadius = UDim.new(0, 4)
+            UICorner_Option.Parent = OptionButton
+            
+            local mouseEnterConnection = OptionButton.MouseEnter:Connect(function()
+                utility:Tween(OptionButton, {BackgroundColor3 = colors.secondary}, 0.2)
+                Mouse.Icon = HandCursorIcon
+            end)
+            
+            local mouseLeaveConnection = OptionButton.MouseLeave:Connect(function()
+                utility:Tween(OptionButton, {BackgroundColor3 = colors.border}, 0.2)
+                Mouse.Icon = DefaultCursor
+            end)
+            
+            local clickConnection = OptionButton.MouseButton1Click:Connect(function()
                 DropdownButton.Text = option
-                toggleMenu()
+                OptionsContainer.Visible = false
                 if callback then
                     callback(option)
                 end
             end)
+            
+            table.insert(Connections, mouseEnterConnection)
+            table.insert(Connections, mouseLeaveConnection)
+            table.insert(Connections, clickConnection)
         end
+        
+        -- Toggle dropdown
+        local dropdownOpen = false
+        
+        local dropdownClickConnection = DropdownButton.MouseButton1Click:Connect(function()
+            dropdownOpen = not dropdownOpen
+            
+            if dropdownOpen then
+                -- Position the options container
+                local buttonPos = DropdownButton.AbsolutePosition
+                local buttonSize = DropdownButton.AbsoluteSize
+                
+                OptionsContainer.Position = UDim2.new(0, buttonPos.X, 0, buttonPos.Y + buttonSize.Y + 5)
+                OptionsContainer.Size = UDim2.new(0, buttonSize.X, 0, 0)
+                OptionsContainer.Visible = true
+                
+                -- Animate opening
+                utility:Tween(OptionsContainer, {Size = UDim2.new(0, buttonSize.X, 0, math.min(#options * 30, 150))}, 0.2)
+                utility:Tween(DropdownButton, {BackgroundColor3 = colors.secondary}, 0.2)
+            else
+                -- Animate closing
+                utility:Tween(OptionsContainer, {Size = UDim2.new(0, OptionsContainer.AbsoluteSize.X, 0, 0)}, 0.2)
+                utility:Tween(DropdownButton, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}, 0.2)
+                
+                task.delay(0.2, function()
+                    OptionsContainer.Visible = false
+                end)
+            end
+        end)
+        table.insert(Connections, dropdownClickConnection)
+        
+        -- Close dropdown when clicking elsewhere
+        local inputBeganConnection = UserInputService.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 and dropdownOpen then
+                local mousePos = UserInputService:GetMouseLocation()
+                local optionsPos = OptionsContainer.AbsolutePosition
+                local optionsSize = OptionsContainer.AbsoluteSize
+                local buttonPos = DropdownButton.AbsolutePosition
+                local buttonSize = DropdownButton.AbsoluteSize
+                
+                -- Check if click is outside both the dropdown button and options container
+                if not (
+                    (mousePos.X >= buttonPos.X and mousePos.X <= buttonPos.X + buttonSize.X and
+                    mousePos.Y >= buttonPos.Y and mousePos.Y <= buttonPos.Y + buttonSize.Y) or
+                    (mousePos.X >= optionsPos.X and mousePos.X <= optionsPos.X + optionsSize.X and
+                    mousePos.Y >= optionsPos.Y and mousePos.Y <= optionsPos.Y + optionsSize.Y)
+                ) then
+                    dropdownOpen = false
+                    utility:Tween(OptionsContainer, {Size = UDim2.new(0, OptionsContainer.AbsoluteSize.X, 0, 0)}, 0.2)
+                    utility:Tween(DropdownButton, {BackgroundColor3 = Color3.fromRGB(50, 50, 50)}, 0.2)
+                    
+                    task.delay(0.2, function()
+                        OptionsContainer.Visible = false
+                    end)
+                end
+            end
+        end)
+        table.insert(Connections, inputBeganConnection)
         
         return DropdownFrame, DropdownButton.Text
     end
     
     -- Add toggles to the right column with default states
     local antiAFKToggle, antiAFKState = createToggle(RightColumn, "Anti-AFK", function(state)
-        -- Anti-AFK functionality will be implemented later
         if state then
             setupAntiAFK(true)
         else
@@ -777,7 +960,6 @@ function Library:CreateWindow(hubname)
     end, true) -- Set to true to enable by default
     
     local infiniteJumpToggle, infiniteJumpState = createToggle(RightColumn, "Infinite Jump", function(state)
-        -- Infinite Jump functionality will be implemented later
         if state then
             setupInfiniteJump(true)
         else
@@ -786,7 +968,6 @@ function Library:CreateWindow(hubname)
     end, false)
     
     local noClipToggle, noClipState = createToggle(RightColumn, "No Clip", function(state)
-        -- No Clip functionality will be implemented later
         if state then
             setupNoClip(true)
         else
@@ -841,20 +1022,15 @@ function Library:CreateWindow(hubname)
         selectedSea = selected
     end, "First Sea")
     
-    -- Make sure the dropdown menu appears on top
-    local DropdownMenu = SeaDropdown:FindFirstChild("DropdownMenu")
-    if DropdownMenu then
-        DropdownMenu.ZIndex = 10
-        for _, child in pairs(DropdownMenu:GetChildren()) do
-            if child:IsA("GuiObject") then
-                child.ZIndex = 11
-            end
-        end
-    end
-    
     createButton(TeleportTab, "Teleport to Sea", function()
-        -- Teleport to selected sea functionality
-        print("Teleporting to " .. selectedSea)
+        -- Teleport to selected sea functionality based on the provided code
+        if selectedSea == "First Sea" then
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelMain")
+        elseif selectedSea == "Second Sea" then
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelDressrosa")
+        elseif selectedSea == "Third Sea" then
+            ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelZou")
+        end
     end)
     
     -- Add player info to the Settings tab
@@ -876,9 +1052,11 @@ function Library:CreateWindow(hubname)
     PlayerTitle.Size = UDim2.new(1, -20, 0, 20)
     PlayerTitle.Font = Enum.Font.GothamBold
     PlayerTitle.Text = "Player Information"
-    PlayerTitle.TextColor3 = colors.text
+    PlayerTitle.TextColor3 = colors.secondary
     PlayerTitle.TextSize = 16
     PlayerTitle.TextXAlignment = Enum.TextXAlignment.Left
+    PlayerTitle.Active = false
+    PlayerTitle.Selectable = false
     
     local PlayerName = Instance.new("TextLabel")
     PlayerName.Name = "PlayerName"
@@ -891,6 +1069,8 @@ function Library:CreateWindow(hubname)
     PlayerName.TextColor3 = colors.secondary
     PlayerName.TextSize = 14
     PlayerName.TextXAlignment = Enum.TextXAlignment.Left
+    PlayerName.Active = false
+    PlayerName.Selectable = false
     
     local PlayerID = Instance.new("TextLabel")
     PlayerID.Name = "PlayerID"
@@ -903,6 +1083,8 @@ function Library:CreateWindow(hubname)
     PlayerID.TextColor3 = colors.secondary
     PlayerID.TextSize = 14
     PlayerID.TextXAlignment = Enum.TextXAlignment.Left
+    PlayerID.Active = false
+    PlayerID.Selectable = false
     
     local AccountAge = Instance.new("TextLabel")
     AccountAge.Name = "AccountAge"
@@ -915,6 +1097,8 @@ function Library:CreateWindow(hubname)
     AccountAge.TextColor3 = colors.secondary
     AccountAge.TextSize = 14
     AccountAge.TextXAlignment = Enum.TextXAlignment.Left
+    AccountAge.Active = false
+    AccountAge.Selectable = false
     
     -- Add world info to the Settings tab
     local WorldInfo = Instance.new("Frame")
@@ -936,9 +1120,11 @@ function Library:CreateWindow(hubname)
     WorldTitle.Size = UDim2.new(1, -20, 0, 20)
     WorldTitle.Font = Enum.Font.GothamBold
     WorldTitle.Text = "Current World"
-    WorldTitle.TextColor3 = colors.text
+    WorldTitle.TextColor3 = colors.secondary
     WorldTitle.TextSize = 16
     WorldTitle.TextXAlignment = Enum.TextXAlignment.Left
+    WorldTitle.Active = false
+    WorldTitle.Selectable = false
     
     local WorldValue = Instance.new("TextLabel")
     WorldValue.Name = "WorldValue"
@@ -947,56 +1133,140 @@ function Library:CreateWindow(hubname)
     WorldValue.Position = UDim2.new(0, 10, 0, 40)
     WorldValue.Size = UDim2.new(1, -20, 0, 20)
     WorldValue.Font = Enum.Font.Gotham
-    WorldValue.Text = "First Sea"
+    WorldValue.Active = false
+    WorldValue.Selectable = false
+    
+    -- Set the current world text based on the place ID
+    if First_Sea then
+        WorldValue.Text = "First Sea"
+    elseif Second_Sea then
+        WorldValue.Text = "Second Sea"
+    elseif Third_Sea then
+        WorldValue.Text = "Third Sea"
+    else
+        WorldValue.Text = "Unknown Sea"
+    end
+    
     WorldValue.TextColor3 = colors.secondary
     WorldValue.TextSize = 14
     WorldValue.TextXAlignment = Enum.TextXAlignment.Left
     
-    -- Add Destroy GUI button to Settings tab
+    -- Add Destroy GUI button to Settings tab with proper cleanup
     createButton(SettingsTab, "Destroy GUI", function()
+        -- Clean up all connections
+        for _, connection in pairs(Connections) do
+            if typeof(connection) == "RBXScriptConnection" and connection.Connected then
+                connection:Disconnect()
+            end
+        end
+        
+        -- Disable all active features
+        setupAntiAFK(false)
+        setupInfiniteJump(false)
+        setupNoClip(false)
+        
+        -- Reset cursor
+        Mouse.Icon = DefaultCursor
+        
+        -- Destroy the GUI
         RedEngineGUI:Destroy()
+        
+        -- Clear variables
+        Connections = {}
+        ActiveFeatures = {}
+        
+        print("RedEngine GUI destroyed and all functions stopped")
     end)
     
     -- Make the GUI draggable
     utility:DraggingEnabled(TopBar, Main)
     
-    -- Minimize functionality
+    -- Minimize functionality - transform into a circular icon
     local minimized = false
-    MinimizeBtn.MouseButton1Click:Connect(function()
+    local originalSize = UDim2.new(0, 600, 0, 350)
+    local originalPosition = Main.Position
+    
+    local minimizeConnection = MinimizeBtn.MouseButton1Click:Connect(function()
         minimized = not minimized
         
         if minimized then
-            utility:Tween(Main, {Size = UDim2.new(0, 600, 0, 30)}, 0.3)
+            -- Save current position
+            originalPosition = Main.Position
+            
+            -- Animate to circle
+            utility:Tween(Main, {Size = UDim2.new(0, 50, 0, 50)}, 0.3)
+            utility:Tween(Main, {Position = UDim2.new(originalPosition.X.Scale, originalPosition.X.Offset + 275, originalPosition.Y.Scale, originalPosition.Y.Offset + 150)}, 0.3)
+            
+            -- Hide all content except TopBar
+            NavBar.Visible = false
+            ContentContainer.Visible = false
+            
+            -- Modify TopBar
+            utility:Tween(TopBar, {Size = UDim2.new(1, 0, 1, 0)}, 0.3)
+            Title.Visible = false
+            
+            -- Center minimize button
+            MinimizeBtn.Position = UDim2.new(0.5, -10, 0.5, -10)
+            MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+            MinimizeBtn.Text = "RE"
         else
-            utility:Tween(Main, {Size = UDim2.new(0, 600, 0, 350)}, 0.3)
+            -- Restore to original state
+            utility:Tween(Main, {Size = originalSize}, 0.3)
+            utility:Tween(Main, {Position = originalPosition}, 0.3)
+            
+            -- Show all content
+            NavBar.Visible = true
+            ContentContainer.Visible = true
+            
+            -- Restore TopBar
+            utility:Tween(TopBar, {Size = UDim2.new(1, 0, 0, 30)}, 0.3)
+            Title.Visible = true
+            
+            -- Restore minimize button
+            MinimizeBtn.Position = UDim2.new(1, -30, 0.5, -10)
+            MinimizeBtn.Size = UDim2.new(0, 20, 0, 20)
+            MinimizeBtn.Text = "RE"
         end
     end)
+    table.insert(Connections, minimizeConnection)
     
     -- Toggle GUI with LeftControl key
     local guiVisible = true
-    UserInputService.InputBegan:Connect(function(input)
+    local inputBeganConnection = UserInputService.InputBegan:Connect(function(input)
         if input.KeyCode == Enum.KeyCode.LeftControl then
             guiVisible = not guiVisible
             RedEngineGUI.Enabled = guiVisible
         end
     end)
+    table.insert(Connections, inputBeganConnection)
+    
+    -- Ensure cursor is reset when mouse leaves GUI elements
+    local mainLeaveConnection = Main.MouseLeave:Connect(function()
+        Mouse.Icon = DefaultCursor
+    end)
+    table.insert(Connections, mainLeaveConnection)
     
     -- Initialize features based on default states
     if antiAFKState then
         setupAntiAFK(true)
+        table.insert(ActiveFeatures, "AntiAFK")
     end
     
     if infiniteJumpState then
         setupInfiniteJump(true)
+        table.insert(ActiveFeatures, "InfiniteJump")
     end
     
     if noClipState then
         setupNoClip(true)
+        table.insert(ActiveFeatures, "NoClip")
     end
     
     return {
         RedEngineGUI = RedEngineGUI,
-        Main = Main
+        Main = Main,
+        Connections = Connections,
+        ActiveFeatures = ActiveFeatures
     }
 end
 
